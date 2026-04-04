@@ -11,20 +11,28 @@
 .heroBadge {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
-  border: 1px solid var(--border-strong);
-  padding: 0.35rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+  padding: 0.55rem 1.05rem;
   border-radius: 999px;
-  background: var(--bg-elevated);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 12%, var(--bg-elevated)) 0%,
+    var(--bg-elevated) 100%
+  );
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
+    0 8px 28px color-mix(in srgb, var(--accent) 12%, transparent);
+  margin-bottom: 0.15rem;
 }
 
 .shield {
-  font-size: 0.9rem;
-  filter: drop-shadow(0 0 8px var(--accent-glow));
+  font-size: 1.05rem;
+  filter: drop-shadow(0 0 10px var(--accent-glow));
 }
 
 .title {

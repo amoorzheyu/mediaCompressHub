@@ -25,22 +25,48 @@
   gap: 0.65rem;
   text-decoration: none;
   color: inherit;
+  padding: 0.2rem 0.35rem 0.2rem 0;
+  margin: -0.2rem 0;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+.brand:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .brandIcon {
-  font-size: 1.35rem;
+  font-size: 1.45rem;
   color: var(--accent);
   text-shadow: 0 0 18px var(--accent-glow);
 }
 
+.brandText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.brandName {
+  font-size: 1.08rem;
+  letter-spacing: 0.04em;
+}
+
 .brandSub {
-  display: block;
-  font-weight: 400;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.55rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-top: 0.1rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-root));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  line-height: 1.2;
 }
 
 .topMenu {

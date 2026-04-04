@@ -15,9 +15,9 @@ export function Layout() {
           <span className={styles.brandIcon} aria-hidden>
             ◈
           </span>
-          <span>
-            <strong>压缩坞</strong>
-            <small className={styles.brandSub}>本地处理 · 零上传</small>
+          <span className={styles.brandText}>
+            <strong className={styles.brandName}>压缩坞</strong>
+            <span className={styles.brandSub}>本地处理 · 零上传</span>
           </span>
         </NavLink>
         <Menu

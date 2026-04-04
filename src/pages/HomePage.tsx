@@ -5,6 +5,7 @@ import {
   Card,
   Flex,
   InputNumber,
+  message,
   Progress,
   Select,
   Slider,
@@ -39,6 +40,9 @@ function kindLabel(kind: 'image' | 'gif' | 'video'): string {
 type TabId = 'image' | 'gif' | 'video'
 
 const TAB_STORAGE_KEY = 'media-compress-hub:last-tab'
+
+/** 单文件体积上限（与上传区文案一致） */
+const MAX_FILE_BYTES = 500 * 1024 * 1024
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'image', label: '图片' },
@@ -154,6 +158,12 @@ export function HomePage() {
 
   const pickFile = useCallback(
     (file: File) => {
+      if (file.size > MAX_FILE_BYTES) {
+        setError(
+          `单文件不能超过 ${formatBytes(MAX_FILE_BYTES)}（当前 ${formatBytes(file.size)}），请压缩或拆分后重试`,
+        )
+        return
+      }
       const detected = classifyFile(file)
       setTab(detected)
       setSelectedFile(file)
@@ -177,6 +187,10 @@ export function HomePage() {
 
   const processFile = useCallback(
     async (file: File) => {
+      if (file.size > MAX_FILE_BYTES) {
+        setError(`单文件不能超过 ${formatBytes(MAX_FILE_BYTES)}`)
+        return
+      }
       setError(null)
       setBusy(true)
       setProgress(0)
@@ -336,8 +350,13 @@ export function HomePage() {
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
-      const f = e.dataTransfer.files[0]
-      if (f) pickFile(f)
+      const { files } = e.dataTransfer
+      const f = files[0]
+      if (!f) return
+      if (files.length > 1) {
+        message.info('已拖入多个文件，当前每次处理 1 个，已为您选取第一个')
+      }
+      pickFile(f)
     },
     [pickFile],
   )
@@ -383,32 +402,28 @@ export function HomePage() {
           纯本地 · 浏览器内处理
         </div>
         <h1 id="hero-title" className={styles.title}>
-          本地智能压缩 | 图片 / 视频 / GIF 100% 不上传，隐私零风险
+          本地智能压缩 | 100% 不上传，隐私零风险
         </h1>
         <p className={styles.lead}>
-          优先在相同像素下减小体积：能无损缩小就用无损（如 PNG），做不到目标体积时会自动采用有损编码（如 JPG / WebP）。
-          处理全程在您的浏览器内完成，文件永不上传云端，历史记录仅保存在本地。
+          图片 / 视频 / GIF 全支持，浏览器本地处理，文件永不云端存储，压缩更快更安全
         </p>
       </section>
 
       <section className={styles.panel} aria-label="上传与选项">
         <Tabs activeKey={activeTab} items={tabItems} onChange={(k) => setTab(k as TabId)} size="large" />
 
-        <Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
-          上次打开时会记住您选中的标签；上传文件后将按内容自动切换到对应类型。
-        </Paragraph>
-
         <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <Upload.Dragger key={activeTab} {...uploadProps} style={{ opacity: busy ? 0.65 : 1, pointerEvents: busy ? 'none' : undefined }}>
             <p className="ant-upload-drag-icon">
-              <InboxOutlined style={{ color: '#34d399', fontSize: 48 }} />
+              <InboxOutlined style={{ color: '#34d399', fontSize: 52 }} />
             </p>
             <Title level={5} style={{ marginTop: 8 }}>
-              拖放文件到此处，或点击选择
+              拖入文件或点击选择
             </Title>
-            <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 480, margin: '8px auto 0' }}>
-              支持拖入任意支持的图片 / GIF / 视频，系统将<strong>自动识别</strong>并切换到对应标签。选择文件后请确认参数，再点「开始压缩」。
+            <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 520, margin: '10px auto 0', lineHeight: 1.65 }}>
+              支持 JPG、PNG、WebP、AVIF、GIF、MP4 等常见格式；单文件最大 <strong>500 MB</strong>
             </Paragraph>
+           
           </Upload.Dragger>
         </div>
 
@@ -454,10 +469,6 @@ export function HomePage() {
         {activeTab === 'image' && (
           <Card title="图片压缩 · 输出选项" size="small" style={{ marginTop: 16 }}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                默认<strong>保持与原图相同的编码格式</strong>（如 JPG 仍输出 JPG）；也可指定转换为 WebP / PNG。
-                输出<strong>不会比原文件更大</strong>：若无损 PNG 仍偏大，会自动改用有损 WebP；若最低有损质量仍无法缩小，则保留原文件。
-              </Paragraph>
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
                   输出格式
