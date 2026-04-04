@@ -1,5 +1,5 @@
 import { Menu } from 'antd'
-import { CompressOutlined, HistoryOutlined, SettingOutlined } from '@ant-design/icons'
+import { CompressOutlined, GithubOutlined, HistoryOutlined, SettingOutlined } from '@ant-design/icons'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import styles from './Layout.module.css'
 
@@ -36,6 +36,17 @@ export function Layout() {
       <main className={styles.main}>
         <Outlet />
       </main>
+      <footer className={styles.footer}>
+        <a
+          className={styles.footerLink}
+          href="https://github.com/amoorzheyu/mediaCompressHub"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <GithubOutlined aria-hidden />
+          amoorzheyu/mediaCompressHub
+        </a>
+      </footer>
     </div>
   )
 }

@@ -377,7 +377,11 @@ export function SettingsPage() {
               压缩任务在<strong>专用 Web Worker</strong>中执行，避免拖慢界面。
             </li>
             <li>
-              历史记录保存在浏览器 <strong>IndexedDB</strong>（域名隔离），不会发送到我们的服务器——本项目<strong>没有后端接口</strong>。
+              历史记录保存在浏览器 <strong>IndexedDB</strong>（域名隔离），不会发送到我们的服务器——本项目<strong>没有后端接口</strong>。完整源代码见{' '}
+              <a href="https://github.com/amoorzheyu/mediaCompressHub" target="_blank" rel="noopener noreferrer">
+                GitHub
+              </a>
+              。
             </li>
             <li>
               GIF / 视频使用 FFmpeg.wasm，核心文件从 CDN 拉取后缓存在本地；编解码仍在您的浏览器内完成。
