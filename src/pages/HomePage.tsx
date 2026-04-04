@@ -174,6 +174,8 @@ export function HomePage() {
   const [, bumpVideoCrfUi] = useReducer((x: number) => x + 1, 0)
   const [videoKeepAudio, setVideoKeepAudio] = useState(() => readVideoKeepAudio())
   const [busy, setBusy] = useState(false)
+  /** 与 `busy` 配套：正在压缩的标签页，用于避免切换标签后进度条跑到错误的文件卡片上 */
+  const [compressingKind, setCompressingKind] = useState<TabId | null>(null)
   const [progress, setProgress] = useState(0)
   /** 仅压缩进行中时展示在进度条下方 */
   const [compressStatusText, setCompressStatusText] = useState('')
@@ -204,6 +206,8 @@ export function HomePage() {
 
   const pane = panes[activeTab]
   const { selectedFile, resultBlob, resultName, lastStats, previewUrl, error, idleStatusText } = pane
+
+  const compressingThisTab = Boolean(busy && compressingKind === activeTab)
 
   const imageMinQualityPct = readImageMinQualityPercent()
   const imageMinQualityDec = readImageMinQualityDecimal()
@@ -302,13 +306,12 @@ export function HomePage() {
   )
 
   const clearSelection = useCallback(() => {
-    if (busy) return
     setPanes((p) => {
       const o = p[activeTab]
       if (o.previewUrl) URL.revokeObjectURL(o.previewUrl)
       return { ...p, [activeTab]: emptyPane() }
     })
-  }, [busy, activeTab])
+  }, [activeTab])
 
   const processFile = useCallback(
     async (file: File) => {
@@ -329,6 +332,7 @@ export function HomePage() {
         previewUrl: null,
       })
       setBusy(true)
+      setCompressingKind(kind)
       setProgress(0)
       setCompressStatusText('读取文件…')
       setResultPreviewOpen(false)
@@ -395,23 +399,28 @@ export function HomePage() {
                   ? '完成：未达目标体积，已输出最低质量下的最小文件，可下载使用'
                   : '完成：无法压至原图以下，已输出最低质量下的最小文件，可下载使用'
               : ''
-          mergePane(kind, {
-            resultBlob: blob,
-            resultName: name,
-            previewUrl: url,
-            lastStats: {
-              inBytes,
-              outBytes: blob.size,
-              inName: file.name,
-              keptOriginal,
-              targetUnmet,
-              imageSmartMode: imageCompressMode === 'smart',
-            },
-            idleStatusText: idleMsg,
-          })
-          setProgress(100)
-          if (!keptOriginal && !targetUnmet) {
-            toast.success('压缩完成')
+          const paneStillThisFile = panesRef.current[kind].selectedFile === file
+          if (paneStillThisFile) {
+            mergePane(kind, {
+              resultBlob: blob,
+              resultName: name,
+              previewUrl: url,
+              lastStats: {
+                inBytes,
+                outBytes: blob.size,
+                inName: file.name,
+                keptOriginal,
+                targetUnmet,
+                imageSmartMode: imageCompressMode === 'smart',
+              },
+              idleStatusText: idleMsg,
+            })
+            setProgress(100)
+            if (!keptOriginal && !targetUnmet) {
+              toast.success('压缩完成')
+            }
+          } else {
+            URL.revokeObjectURL(url)
           }
 
           const thumb = await makeThumbnailBlob(blob)
@@ -465,21 +474,26 @@ export function HomePage() {
           keptOriginal = true
         }
         const url = URL.createObjectURL(blob)
-        mergePane(kind, {
-          resultBlob: blob,
-          resultName: outputFileName,
-          previewUrl: url,
-          lastStats: {
-            inBytes,
-            outBytes: blob.size,
-            inName: file.name,
-            keptOriginal,
-          },
-          idleStatusText: keptOriginal ? '完成：编码结果未小于原文件，已保留原文件' : '',
-        })
-        setProgress(100)
-        if (!keptOriginal) {
-          toast.success('压缩完成')
+        const paneStillThisFile = panesRef.current[kind].selectedFile === file
+        if (paneStillThisFile) {
+          mergePane(kind, {
+            resultBlob: blob,
+            resultName: outputFileName,
+            previewUrl: url,
+            lastStats: {
+              inBytes,
+              outBytes: blob.size,
+              inName: file.name,
+              keptOriginal,
+            },
+            idleStatusText: keptOriginal ? '完成：编码结果未小于原文件，已保留原文件' : '',
+          })
+          setProgress(100)
+          if (!keptOriginal) {
+            toast.success('压缩完成')
+          }
+        } else {
+          URL.revokeObjectURL(url)
         }
 
         const thumb =
@@ -503,7 +517,9 @@ export function HomePage() {
         })
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
-        mergePane(kind, { error: message })
+        if (panesRef.current[kind].selectedFile === file) {
+          mergePane(kind, { error: message })
+        }
         await addJob({
           id: jobId,
           createdAt: Date.now(),
@@ -519,6 +535,7 @@ export function HomePage() {
         })
       } finally {
         setBusy(false)
+        setCompressingKind(null)
         setCompressStatusText('')
       }
     },
@@ -555,13 +572,12 @@ export function HomePage() {
       accept: acceptForTab(activeTab),
       showUploadList: false,
       multiple: false,
-      disabled: busy,
       beforeUpload: (file) => {
         pickFile(file)
         return false
       },
     }),
-    [activeTab, busy, pickFile],
+    [activeTab, pickFile],
   )
 
   const smartTargetApproxBytes = useMemo(() => {
@@ -589,9 +605,8 @@ export function HomePage() {
       TABS.map((t) => ({
         key: t.id,
         label: t.label,
-        disabled: busy,
       })),
-    [busy],
+    [],
   )
 
   return (
@@ -615,7 +630,7 @@ export function HomePage() {
         <Tabs activeKey={activeTab} items={tabItems} onChange={(k) => setTab(k as TabId)} size="large" />
 
         <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
-          <Upload.Dragger key={activeTab} {...uploadProps} style={{ opacity: busy ? 0.65 : 1, pointerEvents: busy ? 'none' : undefined }}>
+          <Upload.Dragger key={activeTab} {...uploadProps}>
             <p className="ant-upload-drag-icon">
               <InboxOutlined style={{ color: '#34d399', fontSize: 52 }} />
             </p>
@@ -678,37 +693,45 @@ export function HomePage() {
                 )}
               </div>
               <div className={styles.fileCardCenter}>
-                {resultBlob && previewUrl ? (
-                  <Space size="small" wrap={false}>
-                    <Tooltip title="预览压缩结果">
+                <Flex align="center" gap={10} wrap={false} className={styles.fileCardCenterInner}>
+                  {resultBlob && previewUrl ? (
+                    <Space size="small" wrap={false}>
+                      <Tooltip title="预览压缩结果">
+                        <Button
+                          type="default"
+                          icon={<EyeOutlined />}
+                          onClick={() => setResultPreviewOpen(true)}
+                          aria-label="预览压缩结果"
+                        />
+                      </Tooltip>
                       <Button
                         type="default"
-                        icon={<EyeOutlined />}
-                        onClick={() => setResultPreviewOpen(true)}
-                        aria-label="预览压缩结果"
+                        icon={<DownloadOutlined />}
+                        iconPlacement="end"
+                        onClick={() => downloadBlob(resultBlob, resultName)}
+                        aria-label="下载压缩结果"
                       />
+                    </Space>
+                  ) : null}
+                  {compressingThisTab ? (
+                    <Tooltip title={compressStatusText || '压缩中'}>
+                      <div className={styles.fileCardProgress}>
+                        <Progress percent={progress} size="small" status="active" showInfo />
+                      </div>
                     </Tooltip>
-                    <Button
-                      type="default"
-                      icon={<DownloadOutlined />}
-                      iconPlacement="end"
-                      onClick={() => downloadBlob(resultBlob, resultName)}
-                    >
-                    </Button>
-                  </Space>
-                ) : null}
+                  ) : null}
+                </Flex>
               </div>
               <div className={styles.fileCardActions}>
                 <Space wrap>
                   <Button
                     type="primary"
-                    icon={busy ? <LoadingOutlined /> : ""}
+                    icon={compressingThisTab ? <LoadingOutlined /> : undefined}
                     onClick={onStartCompress}
-                    disabled={busy}
                   >
-                    {busy ? `压缩中 ${Math.round(progress)}%` : '开始压缩'}
+                    {compressingThisTab ? '压缩中…' : '开始压缩'}
                   </Button>
-                  <Button icon={<DeleteOutlined />} onClick={clearSelection} disabled={busy}>
+                  <Button icon={<DeleteOutlined />} onClick={clearSelection} aria-label="移除当前文件">
                     
                   </Button>
                 </Space>
@@ -728,7 +751,6 @@ export function HomePage() {
                   block
                   value={imageCompressMode}
                   onChange={(v) => setImageCompressMode(v)}
-                  disabled={busy}
                   options={[
                     { label: '智能压缩', value: 'smart' },
                     { label: '手动调节压缩质量', value: 'manual' },
@@ -743,7 +765,6 @@ export function HomePage() {
                   style={{ width: '100%' }}
                   value={format}
                   onChange={(v) => setFormat(v as ImageFormatPreference)}
-                  disabled={busy}
                   options={[
                     { value: 'original', label: '默认（保持原图格式）' },
                     { value: 'webp', label: 'WebP（.webp）' },
@@ -775,12 +796,10 @@ export function HomePage() {
                       onChange={(v) => {
                         setSmartTargetValue(typeof v === 'number' ? v : null)
                       }}
-                      disabled={busy}
                     />
                     <Select<SmartTargetUnit>
                       style={{ width: 88 }}
                       value={smartTargetUnit}
-                      disabled={busy}
                       options={[
                         { value: 'kb', label: 'KB' },
                         { value: 'mb', label: 'MB' },
@@ -833,7 +852,6 @@ export function HomePage() {
                     max={95}
                     value={Math.round(quality * 100)}
                     onChange={(v) => setQuality(v / 100)}
-                    disabled={busy}
                     tooltip={{ formatter: (v) => `${v}%` }}
                   />
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
@@ -868,7 +886,6 @@ export function HomePage() {
                       writeVideoTargetCrf(crf)
                       bumpVideoCrfUi()
                     }}
-                    disabled={busy}
                     tooltip={{ formatter: (v) => (v != null ? `${v}%` : '') }}
                   />
                   <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 12, fontSize: 13 }}>
@@ -884,7 +901,6 @@ export function HomePage() {
                         writeVideoKeepAudio(checked)
                         setVideoKeepAudio(checked)
                       }}
-                      disabled={busy}
                     />
                   </Flex>
                   <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 4, fontSize: 12 }}>
@@ -898,15 +914,6 @@ export function HomePage() {
               )}
             </Space>
           </Card>
-        )}
-
-        {busy && (
-          <div style={{ marginTop: 20 }}>
-            <Progress percent={progress} status="active" />
-            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-              {compressStatusText}
-            </Text>
-          </div>
         )}
 
         {!busy && idleStatusText && !error && (

@@ -88,6 +88,15 @@
   padding-inline: 8px;
 }
 
+.fileCardCenterInner {
+  min-width: 0;
+}
+
+.fileCardProgress {
+  min-width: 112px;
+  width: min(148px, 28vw);
+}
+
 .fileCardActions {
   display: flex;
   justify-content: flex-end;
