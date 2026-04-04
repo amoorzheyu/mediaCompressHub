@@ -11,6 +11,7 @@ import {
   Select,
   Slider,
   Space,
+  Switch,
   Tabs,
   Typography,
   Upload,
@@ -32,6 +33,7 @@ import {
 import { readImageMinQualityDecimal, readImageMinQualityPercent } from '../lib/imageCompressSettings'
 import { videoCompressPercentToCrf, videoCrfToCompressPercent } from '../lib/compress/videoCrfPercent'
 import { readVideoCrfRange, readVideoTargetCrf, writeVideoTargetCrf } from '../lib/videoCrfRangeSettings'
+import { readVideoKeepAudio, writeVideoKeepAudio } from '../lib/videoAudioSettings'
 import { resolveEncodeFormat } from '../lib/resolveImageFormat'
 import type { ImageCompressOptions, ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
 import styles from './HomePage.module.css'
@@ -121,6 +123,7 @@ export function HomePage() {
   const [smartTargetUnit, setSmartTargetUnit] = useState<SmartTargetUnit>('kb')
   const [quality, setQuality] = useState(0.82)
   const [, bumpVideoCrfUi] = useReducer((x: number) => x + 1, 0)
+  const [videoKeepAudio, setVideoKeepAudio] = useState(() => readVideoKeepAudio())
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('')
@@ -336,7 +339,13 @@ export function HomePage() {
           setFfmpegReady(true)
         }
 
-        setStatusText(kind === 'gif' ? '在 Worker 中处理 GIF…' : '在 Worker 中压缩视频（无音轨以减小体积）…')
+        setStatusText(
+          kind === 'gif'
+            ? '在 Worker 中处理 GIF…'
+            : videoKeepAudio
+              ? '在 Worker 中压缩视频（保留音轨）…'
+              : '在 Worker 中压缩视频（已去除音轨以减小体积）…',
+        )
         const out = await runFfmpegCompress(
           jobId,
           buf,
@@ -344,6 +353,7 @@ export function HomePage() {
           kind === 'gif' ? 'gif' : 'video',
           readVideoTargetCrf(),
           setProgress,
+          videoKeepAudio,
         )
         let blob = new Blob([out.buffer], { type: out.outputMime })
         let outputFileName = out.outputFileName
@@ -408,6 +418,7 @@ export function HomePage() {
     },
     [
       ffmpegReady,
+      videoKeepAudio,
       format,
       imageCompressMode,
       imageMinQualityDec,
@@ -719,9 +730,23 @@ export function HomePage() {
                     tooltip={{ formatter: (v) => (v != null ? `${v}%` : '') }}
                   />
                   <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 12, fontSize: 13 }}>
-                    当前约对应 CRF {videoTargetCrf}（范围{' '}
+                    当前对应 CRF {videoTargetCrf}（范围{' '}
                     {videoCrfRange.min}～{videoCrfRange.max}，可在{' '}
                     <RouterLink to="/settings">设置</RouterLink> 调整上下限）
+                  </Paragraph>
+                  <Flex justify="space-between" align="center" wrap gap={8} style={{ marginTop: 16 }}>
+                    <Text type="secondary">保留音频</Text>
+                    <Switch
+                      checked={videoKeepAudio}
+                      onChange={(checked) => {
+                        writeVideoKeepAudio(checked)
+                        setVideoKeepAudio(checked)
+                      }}
+                      disabled={busy}
+                    />
+                  </Flex>
+                  <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 4, fontSize: 12 }}>
+                    开启时会保留音频，关闭可减小体积
                   </Paragraph>
                 </div>
               ) : (

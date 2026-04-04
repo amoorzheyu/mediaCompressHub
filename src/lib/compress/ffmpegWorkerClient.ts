@@ -41,6 +41,8 @@ export function runFfmpegCompress(
   mode: 'gif' | 'video',
   crf: number,
   onProgress: (p: number) => void,
+  /** 仅视频 MP4：默认 true 保留音轨并重编码为 AAC */
+  keepAudio = true,
 ): Promise<{ buffer: ArrayBuffer; outputMime: string; outputFileName: string }> {
   const w = getWorker()
   return new Promise((resolve, reject) => {
@@ -72,6 +74,7 @@ export function runFfmpegCompress(
       inputFileName,
       mode,
       crf,
+      ...(mode === 'video' ? { keepAudio } : {}),
     }
     w.postMessage(payload, [buffer])
   })

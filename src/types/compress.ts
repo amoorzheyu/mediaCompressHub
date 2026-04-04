@@ -51,6 +51,8 @@ export type FfmpegWorkerIn =
       inputFileName: string
       mode: 'gif' | 'video'
       crf: number
+      /** 仅 mode === 'video' 时有效：true 保留并重编码为 AAC；false 去除音轨 */
+      keepAudio?: boolean
     }
 
 export type FfmpegWorkerToMain =

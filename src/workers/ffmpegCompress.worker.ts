@@ -87,7 +87,7 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
 
   if (msg.type !== 'run') return
 
-  const { jobId, buffer, inputFileName, mode, crf } = msg
+  const { jobId, buffer, inputFileName, mode, crf, keepAudio = true } = msg
   try {
     await ensureLoaded()
   } catch {
@@ -137,26 +137,56 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
     } else {
       const out = `out_${jobId}.mp4`
       const crfEnc = clampCrfForX264Encode(crf)
-      await active.exec([
-        '-i',
-        input,
-        '-c:v',
-        'libx264',
-        '-crf',
-        String(crfEnc),
-        '-preset',
-        'veryfast',
-        '-pix_fmt',
-        'yuv420p',
-        '-movflags',
-        '+faststart',
-        // yuv420p 要求偶数宽高；已为偶数时 trunc 不改变像素尺寸
-        '-vf',
-        'scale=trunc(iw/2)*2:trunc(ih/2)*2',
-        '-an',
-        '-y',
-        out,
-      ])
+      const vf = 'scale=trunc(iw/2)*2:trunc(ih/2)*2'
+      const args =
+        keepAudio
+          ? [
+              '-i',
+              input,
+              '-map',
+              '0:v:0',
+              '-map',
+              '0:a?',
+              '-c:v',
+              'libx264',
+              '-crf',
+              String(crfEnc),
+              '-preset',
+              'veryfast',
+              '-pix_fmt',
+              'yuv420p',
+              '-movflags',
+              '+faststart',
+              '-vf',
+              vf,
+              '-c:a',
+              'aac',
+              '-b:a',
+              '128k',
+              '-y',
+              out,
+            ]
+          : [
+              '-i',
+              input,
+              '-map',
+              '0:v:0',
+              '-c:v',
+              'libx264',
+              '-crf',
+              String(crfEnc),
+              '-preset',
+              'veryfast',
+              '-pix_fmt',
+              'yuv420p',
+              '-movflags',
+              '+faststart',
+              '-vf',
+              vf,
+              '-y',
+              out,
+            ]
+      await active.exec(args)
       const data = await active.readFile(out)
       const outBuf = fileDataToArrayBuffer(data)
       await active.deleteFile(input).catch(() => {})
