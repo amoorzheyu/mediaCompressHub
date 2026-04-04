@@ -2,13 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-width: 58ch;
-}
-
-.title {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 650;
+  max-width: 720px;
 }
 
 .section {

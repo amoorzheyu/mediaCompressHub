@@ -8,131 +8,19 @@
   padding-bottom: 0.25rem;
 }
 
-.title {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 650;
-}
-
-.sub {
-  margin: 0.45rem 0 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.55;
-  max-width: 56ch;
-}
-
-.muted,
-.empty {
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
 .list {
-  list-style: none;
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  padding-left: 1.2rem;
+  line-height: 1.65;
+  color: var(--text-soft, rgba(255, 255, 255, 0.75));
 }
 
-.card {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
-}
-
-.cardMain {
-  display: flex;
-  gap: 0.85rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.thumb {
-  width: 56px;
-  height: 56px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.thumbPlaceholder {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.thumbFallback {
+  background: #12151f !important;
+  color: rgba(255, 255, 255, 0.45) !important;
   font-weight: 700;
-  color: var(--muted);
-  background: var(--bg-root);
-  flex-shrink: 0;
 }
 
-.meta {
-  min-width: 0;
-}
-
-.name {
-  font-weight: 600;
-  font-size: 0.95rem;
-  word-break: break-all;
-}
-
-.line {
-  margin-top: 0.25rem;
-  font-size: 0.82rem;
-  color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.65rem;
-  align-items: center;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.12rem 0.45rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-soft);
-}
-
-.mime,
-.dim {
-  color: var(--muted);
-}
-
-.errLine {
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--danger);
-}
-
-.delBtn {
-  font: inherit;
-  font-size: 0.82rem;
-  cursor: pointer;
-  border: 1px solid var(--border-strong);
-  background: transparent;
-  color: var(--text-soft);
-  border-radius: 8px;
-  padding: 0.35rem 0.55rem;
-  flex-shrink: 0;
-}
-
-.delBtn:hover {
-  border-color: var(--danger);
-  color: var(--danger);
+.thumbImg :global(img) {
+  object-fit: cover;
 }

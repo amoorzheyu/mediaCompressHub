@@ -1,4 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Alert,
+  Button,
+  Card,
+  Flex,
+  InputNumber,
+  Progress,
+  Select,
+  Slider,
+  Space,
+  Tabs,
+  Typography,
+  Upload,
+} from 'antd'
+import { DeleteOutlined, DownloadOutlined, InboxOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import type { UploadProps } from 'antd'
 import { runImageCompress } from '../lib/compress/imageWorkerClient'
 import { preloadFfmpeg, runFfmpegCompress } from '../lib/compress/ffmpegWorkerClient'
 import { addJob } from '../lib/idb/db'
@@ -19,6 +35,46 @@ function kindLabel(kind: 'image' | 'gif' | 'video'): string {
   return '静态图片'
 }
 
+type TabId = 'image' | 'gif' | 'video'
+
+const TAB_STORAGE_KEY = 'media-compress-hub:last-tab'
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'image', label: '图片' },
+  { id: 'gif', label: 'GIF' },
+  { id: 'video', label: '视频' },
+]
+
+function isTabId(v: string | null): v is TabId {
+  return v === 'image' || v === 'gif' || v === 'video'
+}
+
+function readStoredTab(): TabId {
+  try {
+    const v = localStorage.getItem(TAB_STORAGE_KEY)
+    if (isTabId(v)) return v
+  } catch {
+    /* 隐私模式等 */
+  }
+  return 'image'
+}
+
+function persistTab(t: TabId) {
+  try {
+    localStorage.setItem(TAB_STORAGE_KEY, t)
+  } catch {
+    /* ignore */
+  }
+}
+
+function acceptForTab(tab: TabId): string {
+  if (tab === 'image') {
+    return 'image/jpeg,image/png,image/webp,image/bmp,image/avif,.jpg,.jpeg,.png,.webp,.bmp,.avif'
+  }
+  if (tab === 'gif') return 'image/gif,.gif'
+  return 'video/*'
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -27,6 +83,8 @@ function downloadBlob(blob: Blob, filename: string) {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+const { Text, Title, Paragraph, Link } = Typography
 
 export function HomePage() {
   const [format, setFormat] = useState<ImageOutputFormat>('webp')
@@ -49,10 +107,15 @@ export function HomePage() {
   const [ffmpegLoading, setFfmpegLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [activeTab, setActiveTabState] = useState<TabId>(() => readStoredTab())
+
+  const setTab = useCallback((t: TabId) => {
+    setActiveTabState(t)
+    persistTab(t)
+  }, [])
 
   const fileKind = selectedFile ? classifyFile(selectedFile) : null
-  const imageOptionsDisabled = busy || fileKind === 'gif' || fileKind === 'video'
-  const ffmpegOptionsDisabled = busy || fileKind === 'image'
+  const tabFileMismatch = Boolean(selectedFile && fileKind && fileKind !== activeTab)
 
   useEffect(() => {
     return () => {
@@ -81,16 +144,21 @@ export function HomePage() {
     }
   }, [])
 
-  const pickFile = useCallback((file: File) => {
-    setSelectedFile(file)
-    setError(null)
-    setStatusText('')
-    setResultBlob(null)
-    setResultName('')
-    setPreviewForBlob(null)
-    setLastStats(null)
-    setProgress(0)
-  }, [setPreviewForBlob])
+  const pickFile = useCallback(
+    (file: File) => {
+      const detected = classifyFile(file)
+      setTab(detected)
+      setSelectedFile(file)
+      setError(null)
+      setStatusText('')
+      setResultBlob(null)
+      setResultName('')
+      setPreviewForBlob(null)
+      setLastStats(null)
+      setProgress(0)
+    },
+    [setPreviewForBlob, setTab],
+  )
 
   const clearSelection = useCallback(() => {
     if (busy) return
@@ -240,19 +308,36 @@ export function HomePage() {
     [pickFile],
   )
 
-  const onFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0]
-      if (f) pickFile(f)
-      e.target.value = ''
-    },
-    [pickFile],
+  const uploadProps: UploadProps = useMemo(
+    () => ({
+      accept: acceptForTab(activeTab),
+      showUploadList: false,
+      multiple: false,
+      disabled: busy,
+      beforeUpload: (file) => {
+        pickFile(file)
+        return false
+      },
+    }),
+    [activeTab, busy, pickFile],
   )
 
   const onStartCompress = useCallback(() => {
     if (!selectedFile || busy) return
+    const k = classifyFile(selectedFile)
+    if (k !== activeTab) setTab(k)
     void processFile(selectedFile)
-  }, [busy, processFile, selectedFile])
+  }, [activeTab, busy, processFile, selectedFile, setTab])
+
+  const tabItems = useMemo(
+    () =>
+      TABS.map((t) => ({
+        key: t.id,
+        label: t.label,
+        disabled: busy,
+      })),
+    [busy],
+  )
 
   return (
     <div className={styles.page}>
@@ -272,186 +357,205 @@ export function HomePage() {
       </section>
 
       <section className={styles.panel} aria-label="上传与选项">
-        <div
-          className={styles.dropzone}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
-          data-busy={busy}
-        >
-          <input
-            className={styles.fileInput}
-            type="file"
-            accept="image/*,video/*"
-            onChange={onFileInput}
-            disabled={busy}
-            aria-label="选择图片或视频文件"
-          />
-          <div className={styles.dropzoneInner}>
-            <p className={styles.dropTitle}>拖放文件到此处，或点击选择</p>
-            <p className={styles.dropHint}>
-              选择文件后请确认下方参数，再点击「开始压缩」。源文件格式由浏览器自动识别，无需手动指定。
+        <Tabs activeKey={activeTab} items={tabItems} onChange={(k) => setTab(k as TabId)} size="large" />
+
+        <Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 16 }}>
+          上次打开时会记住您选中的标签；上传文件后将按内容自动切换到对应类型。
+        </Paragraph>
+
+        <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+          <Upload.Dragger key={activeTab} {...uploadProps} style={{ opacity: busy ? 0.65 : 1, pointerEvents: busy ? 'none' : undefined }}>
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined style={{ color: '#34d399', fontSize: 48 }} />
             </p>
-          </div>
+            <Title level={5} style={{ marginTop: 8 }}>
+              拖放文件到此处，或点击选择
+            </Title>
+            <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 480, margin: '8px auto 0' }}>
+              支持拖入任意支持的图片 / GIF / 视频，系统将<strong>自动识别</strong>并切换到对应标签。选择文件后请确认参数，再点「开始压缩」。
+            </Paragraph>
+          </Upload.Dragger>
         </div>
 
         {selectedFile && (
-          <div className={styles.selectionBar}>
-            <div className={styles.selectionInfo}>
-              <span className={styles.selectionName}>{selectedFile.name}</span>
-              <span className={styles.selectionMeta}>
-                {formatBytes(selectedFile.size)} · {kindLabel(classifyFile(selectedFile))}
-                {selectedFile.type ? ` · ${selectedFile.type}` : ''}
-              </span>
-            </div>
-            <div className={styles.selectionActions}>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                onClick={onStartCompress}
-                disabled={busy}
-              >
-                开始压缩
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                onClick={clearSelection}
-                disabled={busy}
-              >
-                移除文件
-              </button>
-            </div>
-          </div>
+          <Card size="small" style={{ marginTop: 16 }} styles={{ body: { padding: '12px 16px' } }}>
+            <Flex align="center" justify="space-between" gap={12} wrap="wrap">
+              <div style={{ minWidth: 0 }}>
+                <Text strong style={{ display: 'block', wordBreak: 'break-all' }}>
+                  {selectedFile.name}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {formatBytes(selectedFile.size)} · 识别为 {kindLabel(classifyFile(selectedFile))}
+                  {selectedFile.type ? ` · ${selectedFile.type}` : ''}
+                </Text>
+              </div>
+              <Space wrap>
+                <Button type="primary" icon={<PlayCircleOutlined />} onClick={onStartCompress} disabled={busy}>
+                  开始压缩
+                </Button>
+                <Button icon={<DeleteOutlined />} onClick={clearSelection} disabled={busy}>
+                  移除文件
+                </Button>
+              </Space>
+            </Flex>
+          </Card>
         )}
 
-        <div className={styles.options}>
-          <fieldset className={styles.fieldset} disabled={imageOptionsDisabled}>
-            <legend>静态图片 · 仅输出选项</legend>
-            <p className={styles.fieldHint}>
-              JPEG / PNG / WebP 等源格式由您上传的文件决定；此处只选择<strong>压缩后的输出格式</strong>与参数。
-            </p>
-            <label className={styles.row}>
-              输出格式
-              <select
-                value={format}
-                onChange={(e) => setFormat(e.target.value as ImageOutputFormat)}
-                disabled={imageOptionsDisabled}
-              >
-                <option value="webp">WebP</option>
-                <option value="jpeg">JPEG</option>
-                <option value="png">PNG</option>
-              </select>
-            </label>
-            <label className={styles.row}>
-              质量 {(quality * 100).toFixed(0)}%
-              <input
-                type="range"
-                min={0.4}
-                max={0.95}
-                step={0.01}
-                value={quality}
-                onChange={(e) => setQuality(Number(e.target.value))}
-                disabled={imageOptionsDisabled}
-              />
-            </label>
-            <label className={styles.row}>
-              最大边长 (px，0 表示不缩放)
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={maxWidth}
-                onChange={(e) => setMaxWidth(Number(e.target.value))}
-                disabled={imageOptionsDisabled}
-              />
-            </label>
-            {(fileKind === 'gif' || fileKind === 'video') && (
-              <p className={styles.fieldMuted}>当前文件为 GIF 或视频，请使用右侧 FFmpeg 选项。</p>
-            )}
-          </fieldset>
+        {tabFileMismatch && (
+          <Alert
+            style={{ marginTop: 16 }}
+            type="warning"
+            showIcon
+            message="标签与文件类型不一致"
+            description={
+              <>
+                当前标签为「{TABS.find((x) => x.id === activeTab)?.label}」，已选文件为 {kindLabel(fileKind!)}。
+                点击「开始压缩」将自动切换到正确标签并处理，或请先移除文件后再切换标签。
+              </>
+            }
+          />
+        )}
 
-          <fieldset className={styles.fieldset} disabled={ffmpegOptionsDisabled}>
-            <legend>GIF / 视频（FFmpeg.wasm · Worker）</legend>
-            <p className={styles.fieldHint}>
-              首次处理 GIF 或视频时会下载 FFmpeg 核心（约数十 MB），仅在您的浏览器缓存中。
-            </p>
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              onClick={() => void handlePreloadFfmpeg()}
-              disabled={busy || ffmpegLoading || ffmpegReady}
-            >
-              {ffmpegReady ? 'FFmpeg 已预加载' : ffmpegLoading ? '正在加载…' : '预加载 FFmpeg'}
-            </button>
-            <label className={styles.row}>
-              视频 CRF（越大体积越小，画质越低）
-              <input
-                type="number"
-                min={18}
-                max={40}
-                value={crf}
-                onChange={(e) => setCrf(Number(e.target.value))}
-                disabled={ffmpegOptionsDisabled}
-              />
-            </label>
-            <label className={styles.row}>
-              目标最大宽度 (GIF / 视频缩放)
-              <input
-                type="number"
-                min={160}
-                max={3840}
-                step={1}
-                value={scaleWidth}
-                onChange={(e) => setScaleWidth(Number(e.target.value))}
-                disabled={ffmpegOptionsDisabled}
-              />
-            </label>
-            {fileKind === 'image' && (
-              <p className={styles.fieldMuted}>当前为静态图片，请使用左侧输出格式选项。</p>
-            )}
-          </fieldset>
-        </div>
+        {activeTab === 'image' && (
+          <Card title="图片压缩 · 输出选项" size="small" style={{ marginTop: 16 }}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                源图格式由文件决定；此处仅设置<strong>输出格式</strong>与压缩参数。
+              </Paragraph>
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                  输出格式
+                </Text>
+                <Select
+                  style={{ width: '100%' }}
+                  value={format}
+                  onChange={(v) => setFormat(v as ImageOutputFormat)}
+                  disabled={busy}
+                  options={[
+                    { value: 'webp', label: 'WebP' },
+                    { value: 'jpeg', label: 'JPEG' },
+                    { value: 'png', label: 'PNG' },
+                  ]}
+                />
+              </div>
+              <div>
+                <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
+                  <Text type="secondary">质量</Text>
+                  <Text strong>{(quality * 100).toFixed(0)}%</Text>
+                </Flex>
+                <Slider
+                  min={40}
+                  max={95}
+                  value={Math.round(quality * 100)}
+                  onChange={(v) => setQuality(v / 100)}
+                  disabled={busy}
+                  tooltip={{ formatter: (v) => `${v}%` }}
+                />
+              </div>
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                  最大边长（px，0 表示不缩放）
+                </Text>
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  max={16384}
+                  value={maxWidth}
+                  onChange={(v) => setMaxWidth(typeof v === 'number' ? v : 0)}
+                  disabled={busy}
+                />
+              </div>
+            </Space>
+          </Card>
+        )}
+
+        {(activeTab === 'gif' || activeTab === 'video') && (
+          <Card
+            title={activeTab === 'gif' ? 'GIF 压缩（FFmpeg · 本地 Worker）' : '视频压缩（FFmpeg · 本地 Worker）'}
+            size="small"
+            style={{ marginTop: 16 }}
+          >
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                首次处理时会下载 FFmpeg 核心（约数十 MB），仅在您的浏览器缓存中。
+              </Paragraph>
+              <Button
+                onClick={() => void handlePreloadFfmpeg()}
+                disabled={busy || ffmpegLoading || ffmpegReady}
+                loading={ffmpegLoading}
+              >
+                {ffmpegReady ? 'FFmpeg 已预加载' : '预加载 FFmpeg'}
+              </Button>
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                  视频 CRF（越大体积越小，画质越低）
+                </Text>
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={18}
+                  max={40}
+                  value={crf}
+                  onChange={(v) => setCrf(typeof v === 'number' ? v : 28)}
+                  disabled={busy}
+                />
+              </div>
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                  目标最大宽度（{activeTab === 'gif' ? 'GIF' : '视频'} 缩放）
+                </Text>
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={160}
+                  max={3840}
+                  value={scaleWidth}
+                  onChange={(v) => setScaleWidth(typeof v === 'number' ? v : 720)}
+                  disabled={busy}
+                />
+              </div>
+            </Space>
+          </Card>
+        )}
 
         {busy && (
-          <div className={styles.progressWrap} role="status" aria-live="polite">
-            <div className={styles.progressBar}>
-              <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-            </div>
-            <p className={styles.status}>{statusText}</p>
+          <div style={{ marginTop: 20 }}>
+            <Progress percent={progress} status="active" />
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              {statusText}
+            </Text>
           </div>
         )}
 
-        {!busy && statusText && !error && <p className={styles.statusOk}>{statusText}</p>}
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
+        {!busy && statusText && !error && (
+          <Alert style={{ marginTop: 16 }} type="success" showIcon message={statusText} />
         )}
+        {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
 
         {lastStats && (
-          <div className={styles.stats}>
-            <span>
-              {lastStats.inName}: {formatBytes(lastStats.inBytes)} → {formatBytes(lastStats.outBytes)}
-            </span>
-            {lastStats.inBytes > 0 && (
-              <span className={styles.saved}>
-                约省 {(100 * (1 - lastStats.outBytes / lastStats.inBytes)).toFixed(1)}%
-              </span>
-            )}
-          </div>
+          <Card size="small" style={{ marginTop: 16 }} styles={{ body: { padding: '10px 16px' } }}>
+            <Flex gap={12} wrap align="center">
+              <Text>
+                {lastStats.inName}: {formatBytes(lastStats.inBytes)} → {formatBytes(lastStats.outBytes)}
+              </Text>
+              {lastStats.inBytes > 0 && (
+                <Text type="success" strong>
+                  约省 {(100 * (1 - lastStats.outBytes / lastStats.inBytes)).toFixed(1)}%
+                </Text>
+              )}
+            </Flex>
+          </Card>
         )}
 
         {resultBlob && (
-          <div className={styles.actions}>
-            <button type="button" className={styles.primaryBtn} onClick={() => downloadBlob(resultBlob, resultName)}>
+          <Flex align="center" gap={12} wrap style={{ marginTop: 16 }}>
+            <Button type="primary" icon={<DownloadOutlined />} onClick={() => downloadBlob(resultBlob, resultName)}>
               下载结果
-            </button>
+            </Button>
             {previewUrl && (
-              <a className={styles.previewLink} href={previewUrl} target="_blank" rel="noreferrer">
+              <Link href={previewUrl} target="_blank" rel="noreferrer">
                 新窗口预览
-              </a>
+              </Link>
             )}
-          </div>
+          </Flex>
         )}
       </section>
     </div>

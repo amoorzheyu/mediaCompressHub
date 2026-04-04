@@ -43,30 +43,23 @@
   margin-top: 0.1rem;
 }
 
-.nav {
-  display: flex;
-  gap: 0.35rem;
+.topMenu {
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 520px;
+  border-bottom: none !important;
+  background: transparent !important;
+  line-height: 1.2;
 }
 
-.navLink,
-.navLinkActive {
-  padding: 0.45rem 0.85rem;
-  border-radius: 8px;
-  text-decoration: none;
-  font-size: 0.9rem;
-  color: var(--muted);
-  border: 1px solid transparent;
+.topMenu :global(.ant-menu-item) {
+  display: inline-flex !important;
+  align-items: center;
 }
 
-.navLink:hover {
-  color: var(--text);
-  background: var(--bg-hover);
-}
-
-.navLinkActive {
-  color: var(--text);
-  border-color: var(--border-strong);
-  background: var(--bg-elevated);
+.topMenu :global(.ant-menu-item::after) {
+  display: none;
 }
 
 .main {
