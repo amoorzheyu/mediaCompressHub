@@ -40,7 +40,6 @@ export function runFfmpegCompress(
   inputFileName: string,
   mode: 'gif' | 'video',
   crf: number,
-  scaleWidth: number,
   onProgress: (p: number) => void,
 ): Promise<{ buffer: ArrayBuffer; outputMime: string; outputFileName: string }> {
   const w = getWorker()
@@ -73,7 +72,6 @@ export function runFfmpegCompress(
       inputFileName,
       mode,
       crf,
-      scaleWidth,
     }
     w.postMessage(payload, [buffer])
   })

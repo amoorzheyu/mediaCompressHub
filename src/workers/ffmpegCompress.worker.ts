@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { toBlobURL } from '@ffmpeg/util'
+import { cachedFfmpegCoreBlobURL } from '../lib/compress/ffmpegCoreCache'
 import type { FfmpegWorkerIn, FfmpegWorkerToMain } from '../types/compress'
 
 function postToMain(msg: FfmpegWorkerToMain, transfer?: Transferable[]) {
@@ -30,8 +30,18 @@ async function ensureLoaded(): Promise<void> {
       })
       const baseURL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/esm`
       await ff.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        coreURL: await cachedFfmpegCoreBlobURL(
+          `${baseURL}/ffmpeg-core.js`,
+          'text/javascript',
+          CORE_VERSION,
+          'js',
+        ),
+        wasmURL: await cachedFfmpegCoreBlobURL(
+          `${baseURL}/ffmpeg-core.wasm`,
+          'application/wasm',
+          CORE_VERSION,
+          'wasm',
+        ),
       })
       ffmpeg = ff
     })()
@@ -76,7 +86,7 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
 
   if (msg.type !== 'run') return
 
-  const { jobId, buffer, inputFileName, mode, crf, scaleWidth } = msg
+  const { jobId, buffer, inputFileName, mode, crf } = msg
   try {
     await ensureLoaded()
   } catch {
@@ -98,12 +108,11 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
 
     if (mode === 'gif') {
       const out = `out_${jobId}.gif`
-      const scale = Math.max(64, scaleWidth)
       await active.exec([
         '-i',
         input,
         '-vf',
-        `fps=12,scale=${scale}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128:stats_mode=single[p];[s1][p]paletteuse=dither=bayer`,
+        'fps=12,split[s0][s1];[s0]palettegen=max_colors=128:stats_mode=single[p];[s1][p]paletteuse=dither=bayer',
         '-loop',
         '0',
         '-y',
@@ -139,8 +148,9 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
         'yuv420p',
         '-movflags',
         '+faststart',
+        // yuv420p 要求偶数宽高；已为偶数时 trunc 不改变像素尺寸
         '-vf',
-        `scale='min(${scaleWidth},iw)':-2`,
+        'scale=trunc(iw/2)*2:trunc(ih/2)*2',
         '-an',
         '-y',
         out,

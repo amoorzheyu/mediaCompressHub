@@ -51,7 +51,6 @@ export type FfmpegWorkerIn =
       inputFileName: string
       mode: 'gif' | 'video'
       crf: number
-      scaleWidth: number
     }
 
 export type FfmpegWorkerToMain =

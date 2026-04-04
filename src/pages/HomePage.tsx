@@ -119,7 +119,6 @@ export function HomePage() {
   const [smartTargetUnit, setSmartTargetUnit] = useState<SmartTargetUnit>('kb')
   const [quality, setQuality] = useState(0.82)
   const [crf, setCrf] = useState(28)
-  const [scaleWidth, setScaleWidth] = useState(720)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('')
@@ -350,7 +349,6 @@ export function HomePage() {
           file.name,
           kind === 'gif' ? 'gif' : 'video',
           crf,
-          scaleWidth,
           setProgress,
         )
         let blob = new Blob([out.buffer], { type: out.outputMime })
@@ -421,7 +419,6 @@ export function HomePage() {
       imageCompressMode,
       imageMinQualityDec,
       quality,
-      scaleWidth,
       setPreviewForBlob,
       smartTargetUnit,
       smartTargetValue,
@@ -720,19 +717,6 @@ export function HomePage() {
                   max={40}
                   value={crf}
                   onChange={(v) => setCrf(typeof v === 'number' ? v : 28)}
-                  disabled={busy}
-                />
-              </div>
-              <div>
-                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-                  目标最大宽度（{activeTab === 'gif' ? 'GIF' : '视频'} 缩放）
-                </Text>
-                <InputNumber
-                  style={{ width: '100%' }}
-                  min={160}
-                  max={3840}
-                  value={scaleWidth}
-                  onChange={(v) => setScaleWidth(typeof v === 'number' ? v : 720)}
                   disabled={busy}
                 />
               </div>
