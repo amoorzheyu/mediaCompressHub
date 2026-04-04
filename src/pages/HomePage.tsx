@@ -641,7 +641,6 @@ export function HomePage() {
                       iconPlacement="end"
                       onClick={() => downloadBlob(resultBlob, resultName)}
                     >
-                      下载结果
                     </Button>
                   </Space>
                 ) : null}
@@ -650,14 +649,14 @@ export function HomePage() {
                 <Space wrap>
                   <Button
                     type="primary"
-                    icon={busy ? <LoadingOutlined /> : <PlayCircleOutlined />}
+                    icon={busy ? <LoadingOutlined /> : ""}
                     onClick={onStartCompress}
                     disabled={busy}
                   >
                     {busy ? `压缩中 ${Math.round(progress)}%` : '开始压缩'}
                   </Button>
                   <Button icon={<DeleteOutlined />} onClick={clearSelection} disabled={busy}>
-                    移除文件
+                    
                   </Button>
                 </Space>
               </div>
