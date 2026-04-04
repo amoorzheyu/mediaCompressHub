@@ -23,9 +23,9 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   EyeOutlined,
+  FallOutlined,
   InboxOutlined,
   LoadingOutlined,
-  PlayCircleOutlined,
 } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
 import { Link as RouterLink } from 'react-router-dom'
@@ -215,6 +215,42 @@ export function HomePage() {
     videoCrfRange.min,
     videoCrfRange.max,
   )
+
+  const fileCardSubtitle = useMemo(() => {
+    if (!selectedFile) return null
+    if (resultBlob) {
+      const inType = selectedFile.type || ''
+      const outType = resultBlob.type || ''
+      const showOutMime = Boolean(outType && (!inType || inType !== outType))
+      return (
+        <>
+          {formatBytes(selectedFile.size)} → {formatBytes(resultBlob.size)}
+          {showOutMime ? ` · ${outType}` : ''}
+        </>
+      )
+    }
+    return (
+      <>
+        {formatBytes(selectedFile.size)}
+        {selectedFile.type ? ` · ${selectedFile.type}` : ''}
+      </>
+    )
+  }, [resultBlob, selectedFile])
+
+  const fileCardSavings = useMemo(() => {
+    if (!selectedFile || !resultBlob) return null
+    if (lastStats?.keptOriginal) return null
+    const inB = lastStats?.inBytes ?? selectedFile.size
+    const outB = lastStats?.outBytes ?? resultBlob.size
+    if (inB <= 0 || outB >= inB) return null
+    const pct = (100 * (1 - outB / inB)).toFixed(1)
+    return (
+      <Text type="success" strong style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.4 }}>
+        <FallOutlined aria-hidden style={{ marginRight: 4 }} />
+        约省 {pct}%
+      </Text>
+    )
+  }, [lastStats, resultBlob, selectedFile])
 
   useEffect(() => {
     setQuality((q) => Math.max(imageMinQualityDec, q))
@@ -616,12 +652,14 @@ export function HomePage() {
           <Card size="small" style={{ marginTop: 16 }} styles={{ body: { padding: '12px 16px' } }}>
             <div className={styles.fileCardGrid}>
               <div style={{ minWidth: 0 }}>
-                <Text strong style={{ display: 'block', wordBreak: 'break-all', marginBottom: 0 }}>
-                  {selectedFile.name}
-                </Text>
+                <Flex justify="space-between" align="flex-start" gap={8} style={{ marginBottom: 4 }}>
+                  <Text strong style={{ wordBreak: 'break-all', marginBottom: 0, flex: 1, minWidth: 0 }}>
+                    {selectedFile.name}
+                  </Text>
+                  {fileCardSavings}
+                </Flex>
                 <Text type="secondary" style={{ fontSize: 13 }}>
-                  {formatBytes(selectedFile.size)}
-                  {selectedFile.type ? ` · ${selectedFile.type}` : ''}
+                  {fileCardSubtitle}
                 </Text>
               </div>
               <div className={styles.fileCardCenter}>
@@ -860,29 +898,6 @@ export function HomePage() {
           <Alert style={{ marginTop: 16 }} type="warning" showIcon message={idleStatusText} />
         )}
         {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
-
-        {lastStats && (
-          <Card size="small" style={{ marginTop: 16 }} styles={{ body: { padding: '10px 16px' } }}>
-            <Flex gap={12} wrap align="center">
-              <Text>
-                {lastStats.inName}: {formatBytes(lastStats.inBytes)} → {formatBytes(lastStats.outBytes)}
-              </Text>
-              {lastStats.keptOriginal ? (
-                <Text type="secondary">体积未增大（已保留原文件）</Text>
-              ) : lastStats.targetUnmet ? (
-                <Text type="secondary">
-                  {lastStats.imageSmartMode
-                    ? '未达目标体积，已输出最低质量下尽量小的文件'
-                    : '未小于原图体积，已输出最低质量下尽量小的文件'}
-                </Text>
-              ) : lastStats.inBytes > 0 && lastStats.outBytes < lastStats.inBytes ? (
-                <Text type="success" strong>
-                  约省 {(100 * (1 - lastStats.outBytes / lastStats.inBytes)).toFixed(1)}%
-                </Text>
-              ) : null}
-            </Flex>
-          </Card>
-        )}
 
         <Modal
           title="压缩结果预览"
