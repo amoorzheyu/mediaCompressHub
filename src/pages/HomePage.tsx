@@ -20,7 +20,8 @@ import { preloadFfmpeg, runFfmpegCompress } from '../lib/compress/ffmpegWorkerCl
 import { addJob } from '../lib/idb/db'
 import { makeThumbnailBlob } from '../lib/thumbnail'
 import { formatBytes } from '../lib/formatBytes'
-import type { ImageOutputFormat } from '../types/compress'
+import { resolveEncodeFormat } from '../lib/resolveImageFormat'
+import type { ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
 import styles from './HomePage.module.css'
 
 function classifyFile(file: File): 'image' | 'gif' | 'video' {
@@ -86,8 +87,14 @@ function downloadBlob(blob: Blob, filename: string) {
 
 const { Text, Title, Paragraph, Link } = Typography
 
+function encodeFormatLabel(f: ImageEncodeFormat): string {
+  if (f === 'jpeg') return 'JPG / JPEG（.jpg）'
+  if (f === 'png') return 'PNG（.png）'
+  return 'WebP（.webp）'
+}
+
 export function HomePage() {
-  const [format, setFormat] = useState<ImageOutputFormat>('webp')
+  const [format, setFormat] = useState<ImageFormatPreference>('original')
   const [quality, setQuality] = useState(0.82)
   const [maxWidth, setMaxWidth] = useState(1920)
   const [crf, setCrf] = useState(28)
@@ -189,13 +196,14 @@ export function HomePage() {
           if (!file.type.startsWith('image/')) {
             throw new Error('不支持的图片类型，请使用常见位图格式')
           }
+          const encodeFormat = resolveEncodeFormat(format, file)
           setStatusText('在后台 Worker 中压缩图片…')
           const out = await runImageCompress(
             jobId,
             buf,
             file.type || 'image/jpeg',
             {
-              format,
+              format: encodeFormat,
               quality,
               maxWidth: maxWidth > 0 ? maxWidth : undefined,
             },
@@ -420,7 +428,7 @@ export function HomePage() {
           <Card title="图片压缩 · 输出选项" size="small" style={{ marginTop: 16 }}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                源图格式由文件决定；此处仅设置<strong>输出格式</strong>与压缩参数。
+                默认<strong>保持与原图相同的编码格式</strong>（如 JPG 仍输出 JPG）；也可指定转换为 WebP / PNG 等。
               </Paragraph>
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
@@ -429,14 +437,23 @@ export function HomePage() {
                 <Select
                   style={{ width: '100%' }}
                   value={format}
-                  onChange={(v) => setFormat(v as ImageOutputFormat)}
+                  onChange={(v) => setFormat(v as ImageFormatPreference)}
                   disabled={busy}
                   options={[
-                    { value: 'webp', label: 'WebP' },
-                    { value: 'jpeg', label: 'JPEG' },
-                    { value: 'png', label: 'PNG' },
+                    { value: 'original', label: '默认（保持原图格式）' },
+                    { value: 'webp', label: 'WebP（.webp）' },
+                    { value: 'jpeg', label: 'JPG / JPEG（.jpg）' },
+                    { value: 'png', label: 'PNG（.png）' },
                   ]}
                 />
+                {selectedFile && format === 'original' && classifyFile(selectedFile) === 'image' && (
+                  <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
+                    当前文件将编码为：{encodeFormatLabel(resolveEncodeFormat('original', selectedFile))}
+                    {(!selectedFile.type || selectedFile.type === '') && (
+                      <>（根据扩展名推断；无法识别时按 WebP 输出）</>
+                    )}
+                  </Paragraph>
+                )}
               </div>
               <div>
                 <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>

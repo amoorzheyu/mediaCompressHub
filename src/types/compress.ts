@@ -1,7 +1,11 @@
-export type ImageOutputFormat = 'jpeg' | 'webp' | 'png'
+/** 实际写入 Worker 的编码格式 */
+export type ImageEncodeFormat = 'jpeg' | 'webp' | 'png'
+
+/** 界面选择：默认表示按原图类型输出（在发送 Worker 前会解析为 ImageEncodeFormat） */
+export type ImageFormatPreference = 'original' | ImageEncodeFormat
 
 export type ImageCompressOptions = {
-  format: ImageOutputFormat
+  format: ImageEncodeFormat
   quality: number
   maxWidth?: number
 }
