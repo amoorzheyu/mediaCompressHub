@@ -435,7 +435,7 @@ export function HomePage() {
                   {selectedFile.name}
                 </Text>
                 <Text type="secondary" style={{ fontSize: 13 }}>
-                  {formatBytes(selectedFile.size)} · 识别为 {kindLabel(classifyFile(selectedFile))}
+                  {formatBytes(selectedFile.size)}
                   {selectedFile.type ? ` · ${selectedFile.type}` : ''}
                 </Text>
               </div>
@@ -508,9 +508,6 @@ export function HomePage() {
                   tooltip={{ formatter: (v) => `${v}%` }}
                 />
               </div>
-              <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 13 }}>
-                不调整像素尺寸，仅重新编码以减小体积；有损/无损由「能否在不大于原体积的前提下编码」决定，质量滑条只表示有损时的上限偏好。
-              </Paragraph>
             </Space>
           </Card>
         )}
