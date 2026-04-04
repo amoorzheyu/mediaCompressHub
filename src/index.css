@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,500&display=swap');
+
+:root {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  --bg-root: #07080c;
+  --bg-elevated: #0e1018;
+  --bg-panel: #0c0e14;
+  --bg-hover: #141824;
+  --border: #1e2433;
+  --border-strong: #2a3347;
+  --text: #e8ebf4;
+  --text-soft: #c4c9d8;
+  --muted: #8b93a8;
+  --accent: #5ee1c0;
+  --accent-dim: #2fb89c;
+  --accent-glow: rgba(94, 225, 192, 0.35);
+  --ok: #7cdb9a;
+  --danger: #f0808a;
+  --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg-root);
+  color: var(--text);
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+h1 strong,
+h2 strong,
+legend {
+  font-family: 'Fraunces', 'Georgia', serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
