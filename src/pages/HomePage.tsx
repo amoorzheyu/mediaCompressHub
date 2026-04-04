@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   Alert,
   App,
@@ -123,6 +123,45 @@ function defaultSmartTarget(fileSizeBytes: number): { value: number; unit: Smart
   return { value: Math.round(mb * 10_000) / 10_000, unit: 'mb' }
 }
 
+type LastStats = {
+  inBytes: number
+  outBytes: number
+  inName: string
+  /** 重编码未采用压缩结果，已保留原文件字节（GIF/视频等） */
+  keptOriginal?: boolean
+  /** 图片：最低质量仍大于体积预算，已输出该最小编码 */
+  targetUnmet?: boolean
+  /** 与 targetUnmet 配套，仅图片有意义 */
+  imageSmartMode?: boolean
+}
+
+type TabPaneState = {
+  selectedFile: File | null
+  resultBlob: Blob | null
+  resultName: string
+  lastStats: LastStats | null
+  previewUrl: string | null
+  error: string | null
+  /** 非压缩中的提示（如保留原图说明） */
+  idleStatusText: string
+}
+
+function emptyPane(): TabPaneState {
+  return {
+    selectedFile: null,
+    resultBlob: null,
+    resultName: '',
+    lastStats: null,
+    previewUrl: null,
+    error: null,
+    idleStatusText: '',
+  }
+}
+
+function initialPanes(): Record<TabId, TabPaneState> {
+  return { image: emptyPane(), gif: emptyPane(), video: emptyPane() }
+}
+
 export function HomePage() {
   const { message: toast } = App.useApp()
 
@@ -136,34 +175,35 @@ export function HomePage() {
   const [videoKeepAudio, setVideoKeepAudio] = useState(() => readVideoKeepAudio())
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [statusText, setStatusText] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [resultBlob, setResultBlob] = useState<Blob | null>(null)
-  const [resultName, setResultName] = useState('')
-  const [lastStats, setLastStats] = useState<{
-    inBytes: number
-    outBytes: number
-    inName: string
-    /** 重编码未采用压缩结果，已保留原文件字节（GIF/视频等） */
-    keptOriginal?: boolean
-    /** 图片：最低质量仍大于体积预算，已输出该最小编码 */
-    targetUnmet?: boolean
-    /** 与 targetUnmet 配套，仅图片有意义 */
-    imageSmartMode?: boolean
-  } | null>(null)
+  /** 仅压缩进行中时展示在进度条下方 */
+  const [compressStatusText, setCompressStatusText] = useState('')
   const [ffmpegReady, setFfmpegReady] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [panes, setPanes] = useState<Record<TabId, TabPaneState>>(initialPanes)
   const [activeTab, setActiveTabState] = useState<TabId>(() => readStoredTab())
+
+  const panesRef = useRef(panes)
+  panesRef.current = panes
+
+  const mergePane = useCallback((tab: TabId, patch: Partial<TabPaneState>) => {
+    setPanes((prev) => {
+      const o = prev[tab]
+      const next = { ...o, ...patch }
+      if ('previewUrl' in patch && patch.previewUrl !== o.previewUrl) {
+        if (o.previewUrl) URL.revokeObjectURL(o.previewUrl)
+      }
+      return { ...prev, [tab]: next }
+    })
+  }, [])
 
   const setTab = useCallback((t: TabId) => {
     setActiveTabState(t)
+    setResultPreviewOpen(false)
     persistTab(t)
   }, [])
 
-  const fileKind = selectedFile ? classifyFile(selectedFile) : null
-  const tabFileMismatch = Boolean(selectedFile && fileKind && fileKind !== activeTab)
+  const pane = panes[activeTab]
+  const { selectedFile, resultBlob, resultName, lastStats, previewUrl, error, idleStatusText } = pane
 
   const imageMinQualityPct = readImageMinQualityPercent()
   const imageMinQualityDec = readImageMinQualityDecimal()
@@ -182,15 +222,12 @@ export function HomePage() {
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      const p = panesRef.current
+      for (const id of TABS.map((t) => t.id)) {
+        const u = p[id].previewUrl
+        if (u) URL.revokeObjectURL(u)
+      }
     }
-  }, [previewUrl])
-
-  const setPreviewForBlob = useCallback((blob: Blob | null) => {
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return blob ? URL.createObjectURL(blob) : null
-    })
   }, [])
 
   const pickFile = useCallback(
@@ -198,20 +235,26 @@ export function HomePage() {
       const detected = classifyFile(file)
       const limit = maxUploadBytesForKind(detected)
       if (file.size > limit) {
-        setError(
-          `单文件不能超过 ${formatBytes(limit)}（当前 ${formatBytes(file.size)}），可在设置中调大上限或压缩、拆分后重试`,
-        )
+        setPanes((p) => ({
+          ...p,
+          [detected]: {
+            ...p[detected],
+            error: `单文件不能超过 ${formatBytes(limit)}（当前 ${formatBytes(file.size)}），可在设置中调大上限或压缩、拆分后重试`,
+          },
+        }))
+        setTab(detected)
         return
       }
       setTab(detected)
-      setSelectedFile(file)
-      setError(null)
-      setStatusText('')
-      setResultBlob(null)
-      setResultName('')
-      setPreviewForBlob(null)
+      setPanes((p) => {
+        const old = p[detected]
+        if (old.previewUrl) URL.revokeObjectURL(old.previewUrl)
+        return {
+          ...p,
+          [detected]: { ...emptyPane(), selectedFile: file },
+        }
+      })
       setResultPreviewOpen(false)
-      setLastStats(null)
       setProgress(0)
       if (detected === 'image') {
         const d = defaultSmartTarget(file.size)
@@ -219,35 +262,40 @@ export function HomePage() {
         setSmartTargetUnit(d.unit)
       }
     },
-    [setPreviewForBlob, setTab],
+    [setTab],
   )
 
   const clearSelection = useCallback(() => {
     if (busy) return
-    setSelectedFile(null)
-    setError(null)
-    setStatusText('')
-  }, [busy])
+    setPanes((p) => {
+      const o = p[activeTab]
+      if (o.previewUrl) URL.revokeObjectURL(o.previewUrl)
+      return { ...p, [activeTab]: emptyPane() }
+    })
+  }, [busy, activeTab])
 
   const processFile = useCallback(
     async (file: File) => {
       const kind = classifyFile(file)
       const limit = maxUploadBytesForKind(kind)
       if (file.size > limit) {
-        setError(
-          `单文件不能超过 ${formatBytes(limit)}（当前 ${formatBytes(file.size)}），可在设置中调大上限`,
-        )
+        mergePane(kind, {
+          error: `单文件不能超过 ${formatBytes(limit)}（当前 ${formatBytes(file.size)}），可在设置中调大上限`,
+        })
         return
       }
-      setError(null)
+      mergePane(kind, {
+        error: null,
+        idleStatusText: '',
+        resultBlob: null,
+        resultName: '',
+        lastStats: null,
+        previewUrl: null,
+      })
       setBusy(true)
       setProgress(0)
-      setStatusText('读取文件…')
-      setResultBlob(null)
-      setResultName('')
-      setPreviewForBlob(null)
+      setCompressStatusText('读取文件…')
       setResultPreviewOpen(false)
-      setLastStats(null)
 
       const jobId = crypto.randomUUID()
       const inBytes = file.size
@@ -283,7 +331,7 @@ export function HomePage() {
           } else {
             imageOptions = { format: encodeFormat, quality, minQuality: imageMinQualityDec }
           }
-          setStatusText(
+          setCompressStatusText(
             imageCompressMode === 'smart'
               ? '在后台 Worker 中智能压缩（二分法逼近目标体积）…'
               : '在后台 Worker 中压缩图片…',
@@ -300,30 +348,33 @@ export function HomePage() {
           const keptOriginal = Boolean(out.usedOriginalFallback)
           const targetUnmet = Boolean(out.targetUnmet)
           const name = keptOriginal ? file.name : `${base}-compressed${ext}`
-          setResultBlob(blob)
-          setResultName(name)
-          setPreviewForBlob(blob)
-          setLastStats({
-            inBytes,
-            outBytes: blob.size,
-            inName: file.name,
-            keptOriginal,
-            targetUnmet,
-            imageSmartMode: imageCompressMode === 'smart',
-          })
-          setProgress(100)
-          if (keptOriginal || targetUnmet) {
-            setStatusText(
-              keptOriginal
+          const url = URL.createObjectURL(blob)
+          const idleMsg =
+            keptOriginal || targetUnmet
+              ? keptOriginal
                 ? imageCompressMode === 'smart'
                   ? '完成：无法压缩到您设定的目标体积，已保留原图'
                   : '完成：当前参数下无法比原文件更小，已保留原图'
                 : imageCompressMode === 'smart'
                   ? '完成：未达目标体积，已输出最低质量下的最小文件，可下载使用'
-                  : '完成：无法压至原图以下，已输出最低质量下的最小文件，可下载使用',
-            )
-          } else {
-            setStatusText('')
+                  : '完成：无法压至原图以下，已输出最低质量下的最小文件，可下载使用'
+              : ''
+          mergePane(kind, {
+            resultBlob: blob,
+            resultName: name,
+            previewUrl: url,
+            lastStats: {
+              inBytes,
+              outBytes: blob.size,
+              inName: file.name,
+              keptOriginal,
+              targetUnmet,
+              imageSmartMode: imageCompressMode === 'smart',
+            },
+            idleStatusText: idleMsg,
+          })
+          setProgress(100)
+          if (!keptOriginal && !targetUnmet) {
             toast.success('压缩完成')
           }
 
@@ -347,12 +398,12 @@ export function HomePage() {
         }
 
         if (!ffmpegReady) {
-          setStatusText('正在加载 FFmpeg（首次需联网拉取核心，仅一次）…')
+          setCompressStatusText('正在加载 FFmpeg（首次需联网拉取核心，仅一次）…')
           await preloadFfmpeg()
           setFfmpegReady(true)
         }
 
-        setStatusText(
+        setCompressStatusText(
           kind === 'gif'
             ? '在 Worker 中处理 GIF…'
             : videoKeepAudio
@@ -377,20 +428,21 @@ export function HomePage() {
           outputFileName = file.name
           keptOriginal = true
         }
-        setResultBlob(blob)
-        setResultName(outputFileName)
-        setPreviewForBlob(blob)
-        setLastStats({
-          inBytes,
-          outBytes: blob.size,
-          inName: file.name,
-          keptOriginal,
+        const url = URL.createObjectURL(blob)
+        mergePane(kind, {
+          resultBlob: blob,
+          resultName: outputFileName,
+          previewUrl: url,
+          lastStats: {
+            inBytes,
+            outBytes: blob.size,
+            inName: file.name,
+            keptOriginal,
+          },
+          idleStatusText: keptOriginal ? '完成：编码结果未小于原文件，已保留原文件' : '',
         })
         setProgress(100)
-        if (keptOriginal) {
-          setStatusText('完成：编码结果未小于原文件，已保留原文件')
-        } else {
-          setStatusText('')
+        if (!keptOriginal) {
           toast.success('压缩完成')
         }
 
@@ -410,8 +462,7 @@ export function HomePage() {
         })
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
-        setError(message)
-        setStatusText('')
+        mergePane(kind, { error: message })
         await addJob({
           id: jobId,
           createdAt: Date.now(),
@@ -427,16 +478,17 @@ export function HomePage() {
         })
       } finally {
         setBusy(false)
+        setCompressStatusText('')
       }
     },
     [
       ffmpegReady,
+      mergePane,
       videoKeepAudio,
       format,
       imageCompressMode,
       imageMinQualityDec,
       quality,
-      setPreviewForBlob,
       smartTargetUnit,
       smartTargetValue,
       toast,
@@ -606,15 +658,6 @@ export function HomePage() {
               </div>
             </div>
           </Card>
-        )}
-
-        {tabFileMismatch && (
-          <Alert
-            style={{ marginTop: 16 }}
-            type="warning"
-            showIcon
-            message="标签与文件类型不一致"
-          />
         )}
 
         {activeTab === 'image' && (
@@ -804,13 +847,13 @@ export function HomePage() {
           <div style={{ marginTop: 20 }}>
             <Progress percent={progress} status="active" />
             <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-              {statusText}
+              {compressStatusText}
             </Text>
           </div>
         )}
 
-        {!busy && statusText && !error && (
-          <Alert style={{ marginTop: 16 }} type="warning" showIcon message={statusText} />
+        {!busy && idleStatusText && !error && (
+          <Alert style={{ marginTop: 16 }} type="warning" showIcon message={idleStatusText} />
         )}
         {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
 
