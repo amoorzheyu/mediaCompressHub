@@ -1,8 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Card, Flex, Modal, Slider, Space, Typography } from 'antd'
+import { Button, Card, Flex, InputNumber, Modal, Segmented, Slider, Space, Typography } from 'antd'
 import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
 import { clearAllJobs } from '../lib/idb/db'
 import { formatBytes } from '../lib/formatBytes'
+import {
+  clampGifMaxUploadBytes,
+  clampImageMaxUploadBytes,
+  clampVideoMaxUploadBytes,
+  DEFAULT_IMAGE_MAX_UPLOAD_BYTES,
+  DEFAULT_GIF_MAX_UPLOAD_BYTES,
+  DEFAULT_VIDEO_MAX_UPLOAD_BYTES,
+  readGifMaxUploadBytes,
+  readImageMaxUploadBytes,
+  readVideoMaxUploadBytes,
+  writeGifMaxUploadBytes,
+  writeImageMaxUploadBytes,
+  writeVideoMaxUploadBytes,
+} from '../lib/fileUploadLimitSettings'
 import {
   DEFAULT_IMAGE_MIN_QUALITY_PERCENT,
   IMAGE_MIN_QUALITY_MAX_PCT,
@@ -12,12 +26,48 @@ import {
 } from '../lib/imageCompressSettings'
 import styles from './SettingsPage.module.css'
 
+const MB = 1024 * 1024
+const GB = 1024 * 1024 * 1024
+
+type SizeUnit = 'mb' | 'gb'
+
+const IMAGE_BYTES_MIN = clampImageMaxUploadBytes(1)
+const IMAGE_BYTES_MAX = clampImageMaxUploadBytes(Number.MAX_SAFE_INTEGER)
+const GIF_BYTES_MIN = clampGifMaxUploadBytes(1)
+const GIF_BYTES_MAX = clampGifMaxUploadBytes(Number.MAX_SAFE_INTEGER)
+const VIDEO_BYTES_MIN = clampVideoMaxUploadBytes(1)
+const VIDEO_BYTES_MAX = clampVideoMaxUploadBytes(Number.MAX_SAFE_INTEGER)
+
+function defaultUnit(bytes: number): SizeUnit {
+  return bytes >= GB ? 'gb' : 'mb'
+}
+
+function bytesToInput(bytes: number, unit: SizeUnit): number {
+  return unit === 'mb' ? bytes / MB : bytes / GB
+}
+
+function inputToBytes(value: number, unit: SizeUnit): number {
+  return unit === 'mb' ? value * MB : value * GB
+}
+
 const { Title, Paragraph, Text } = Typography
 
 export function SettingsPage() {
   const [usage, setUsage] = useState<{ usage?: number; quota?: number }>({})
   const [cleared, setCleared] = useState(false)
   const [imageMinQualityPct, setImageMinQualityPct] = useState(() => readImageMinQualityPercent())
+  const [imageUnit, setImageUnit] = useState<SizeUnit>(() => defaultUnit(readImageMaxUploadBytes()))
+  const [imageInput, setImageInput] = useState<number | null>(() =>
+    bytesToInput(readImageMaxUploadBytes(), defaultUnit(readImageMaxUploadBytes())),
+  )
+  const [gifUnit, setGifUnit] = useState<SizeUnit>(() => defaultUnit(readGifMaxUploadBytes()))
+  const [gifInput, setGifInput] = useState<number | null>(() =>
+    bytesToInput(readGifMaxUploadBytes(), defaultUnit(readGifMaxUploadBytes())),
+  )
+  const [videoUnit, setVideoUnit] = useState<SizeUnit>(() => defaultUnit(readVideoMaxUploadBytes()))
+  const [videoInput, setVideoInput] = useState<number | null>(() =>
+    bytesToInput(readVideoMaxUploadBytes(), defaultUnit(readVideoMaxUploadBytes())),
+  )
 
   const refreshEstimate = useCallback(async () => {
     if (!navigator.storage?.estimate) {
@@ -91,6 +141,157 @@ export function SettingsPage() {
             />
             <Text strong style={{ minWidth: 48 }}>{imageMinQualityPct}%</Text>
           </Flex>
+        </Card>
+
+        <Card title="上传 · 单文件体积上限" size="small">
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            首页拖入或选择文件时的体积校验与提示文案均与此处一致，保存在本机浏览器。默认：静态图{' '}
+            {DEFAULT_IMAGE_MAX_UPLOAD_BYTES / MB} MB、GIF {DEFAULT_GIF_MAX_UPLOAD_BYTES / MB} MB、视频{' '}
+            {DEFAULT_VIDEO_MAX_UPLOAD_BYTES / GB} GB。
+          </Paragraph>
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <div>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                静态图片（JPG / PNG / WebP / AVIF 等）
+              </Text>
+              <Flex align="center" gap={12} wrap>
+                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={bytesToInput(IMAGE_BYTES_MIN, imageUnit)}
+                    max={bytesToInput(IMAGE_BYTES_MAX, imageUnit)}
+                    step={imageUnit === 'mb' ? 1 : 0.001}
+                    precision={imageUnit === 'mb' ? 0 : 3}
+                    value={imageInput ?? undefined}
+                    onChange={(v) => {
+                      if (v == null || !Number.isFinite(v)) {
+                        setImageInput(null)
+                        return
+                      }
+                      const clamped = clampImageMaxUploadBytes(inputToBytes(v, imageUnit))
+                      writeImageMaxUploadBytes(clamped)
+                      setImageInput(bytesToInput(clamped, imageUnit))
+                    }}
+                    onBlur={() => {
+                      if (imageInput == null) {
+                        const b = readImageMaxUploadBytes()
+                        setImageInput(bytesToInput(b, imageUnit))
+                      }
+                    }}
+                  />
+                  <Segmented<SizeUnit>
+                    value={imageUnit}
+                    onChange={(u) => {
+                      const b = readImageMaxUploadBytes()
+                      setImageUnit(u)
+                      setImageInput(bytesToInput(b, u))
+                    }}
+                    options={[
+                      { label: 'MB', value: 'mb' },
+                      { label: 'GB', value: 'gb' },
+                    ]}
+                  />
+                </Space.Compact>
+              </Flex>
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 6, display: 'block' }}>
+                有效约 {formatBytes(IMAGE_BYTES_MIN)}～{formatBytes(IMAGE_BYTES_MAX)}（保存时自动对齐到允许范围）
+              </Text>
+            </div>
+            <div>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                GIF 动图
+              </Text>
+              <Flex align="center" gap={12} wrap>
+                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={bytesToInput(GIF_BYTES_MIN, gifUnit)}
+                    max={bytesToInput(GIF_BYTES_MAX, gifUnit)}
+                    step={gifUnit === 'mb' ? 1 : 0.01}
+                    precision={gifUnit === 'mb' ? 0 : 2}
+                    value={gifInput ?? undefined}
+                    onChange={(v) => {
+                      if (v == null || !Number.isFinite(v)) {
+                        setGifInput(null)
+                        return
+                      }
+                      const clamped = clampGifMaxUploadBytes(inputToBytes(v, gifUnit))
+                      writeGifMaxUploadBytes(clamped)
+                      setGifInput(bytesToInput(clamped, gifUnit))
+                    }}
+                    onBlur={() => {
+                      if (gifInput == null) {
+                        const b = readGifMaxUploadBytes()
+                        setGifInput(bytesToInput(b, gifUnit))
+                      }
+                    }}
+                  />
+                  <Segmented<SizeUnit>
+                    value={gifUnit}
+                    onChange={(u) => {
+                      const b = readGifMaxUploadBytes()
+                      setGifUnit(u)
+                      setGifInput(bytesToInput(b, u))
+                    }}
+                    options={[
+                      { label: 'MB', value: 'mb' },
+                      { label: 'GB', value: 'gb' },
+                    ]}
+                  />
+                </Space.Compact>
+              </Flex>
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 6, display: 'block' }}>
+                有效约 {formatBytes(GIF_BYTES_MIN)}～{formatBytes(GIF_BYTES_MAX)}
+              </Text>
+            </div>
+            <div>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                视频
+              </Text>
+              <Flex align="center" gap={12} wrap>
+                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={bytesToInput(VIDEO_BYTES_MIN, videoUnit)}
+                    max={bytesToInput(VIDEO_BYTES_MAX, videoUnit)}
+                    step={videoUnit === 'mb' ? 1 : 0.1}
+                    precision={videoUnit === 'mb' ? 0 : 1}
+                    value={videoInput ?? undefined}
+                    onChange={(v) => {
+                      if (v == null || !Number.isFinite(v)) {
+                        setVideoInput(null)
+                        return
+                      }
+                      const clamped = clampVideoMaxUploadBytes(inputToBytes(v, videoUnit))
+                      writeVideoMaxUploadBytes(clamped)
+                      setVideoInput(bytesToInput(clamped, videoUnit))
+                    }}
+                    onBlur={() => {
+                      if (videoInput == null) {
+                        const b = readVideoMaxUploadBytes()
+                        setVideoInput(bytesToInput(b, videoUnit))
+                      }
+                    }}
+                  />
+                  <Segmented<SizeUnit>
+                    value={videoUnit}
+                    onChange={(u) => {
+                      const b = readVideoMaxUploadBytes()
+                      setVideoUnit(u)
+                      setVideoInput(bytesToInput(b, u))
+                    }}
+                    options={[
+                      { label: 'MB', value: 'mb' },
+                      { label: 'GB', value: 'gb' },
+                    ]}
+                  />
+                </Space.Compact>
+              </Flex>
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 6, display: 'block' }}>
+                有效约 {formatBytes(VIDEO_BYTES_MIN)}～{formatBytes(VIDEO_BYTES_MAX)}
+              </Text>
+            </div>
+          </Space>
         </Card>
 
         <Card title="数据如何存放" size="small">

@@ -23,6 +23,12 @@ import { preloadFfmpeg, runFfmpegCompress } from '../lib/compress/ffmpegWorkerCl
 import { addJob } from '../lib/idb/db'
 import { makeThumbnailBlob } from '../lib/thumbnail'
 import { formatBytes } from '../lib/formatBytes'
+import {
+  maxUploadBytesForKind,
+  readGifMaxUploadBytes,
+  readImageMaxUploadBytes,
+  readVideoMaxUploadBytes,
+} from '../lib/fileUploadLimitSettings'
 import { readImageMinQualityDecimal, readImageMinQualityPercent } from '../lib/imageCompressSettings'
 import { resolveEncodeFormat } from '../lib/resolveImageFormat'
 import type { ImageCompressOptions, ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
@@ -34,18 +40,9 @@ function classifyFile(file: File): 'image' | 'gif' | 'video' {
   return 'image'
 }
 
-function kindLabel(kind: 'image' | 'gif' | 'video'): string {
-  if (kind === 'gif') return 'GIF'
-  if (kind === 'video') return '视频'
-  return '静态图片'
-}
-
 type TabId = 'image' | 'gif' | 'video'
 
 const TAB_STORAGE_KEY = 'media-compress-hub:last-tab'
-
-/** 单文件体积上限（与上传区文案一致） */
-const MAX_FILE_BYTES = 500 * 1024 * 1024
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'image', label: '图片' },
@@ -191,13 +188,14 @@ export function HomePage() {
 
   const pickFile = useCallback(
     (file: File) => {
-      if (file.size > MAX_FILE_BYTES) {
+      const detected = classifyFile(file)
+      const limit = maxUploadBytesForKind(detected)
+      if (file.size > limit) {
         setError(
-          `单文件不能超过 ${formatBytes(MAX_FILE_BYTES)}（当前 ${formatBytes(file.size)}），请压缩或拆分后重试`,
+          `单文件不能超过 ${formatBytes(limit)}（当前 ${formatBytes(file.size)}），可在设置中调大上限或压缩、拆分后重试`,
         )
         return
       }
-      const detected = classifyFile(file)
       setTab(detected)
       setSelectedFile(file)
       setError(null)
@@ -225,8 +223,12 @@ export function HomePage() {
 
   const processFile = useCallback(
     async (file: File) => {
-      if (file.size > MAX_FILE_BYTES) {
-        setError(`单文件不能超过 ${formatBytes(MAX_FILE_BYTES)}`)
+      const kind = classifyFile(file)
+      const limit = maxUploadBytesForKind(kind)
+      if (file.size > limit) {
+        setError(
+          `单文件不能超过 ${formatBytes(limit)}（当前 ${formatBytes(file.size)}），可在设置中调大上限`,
+        )
         return
       }
       setError(null)
@@ -239,7 +241,6 @@ export function HomePage() {
       setLastStats(null)
 
       const jobId = crypto.randomUUID()
-      const kind = classifyFile(file)
       const inBytes = file.size
 
       try {
@@ -515,7 +516,26 @@ export function HomePage() {
               拖入文件或点击选择
             </Title>
             <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 520, margin: '10px auto 0', lineHeight: 1.65 }}>
-              支持 JPG、PNG、WebP、AVIF、GIF、MP4 等常见格式；单文件最大 <strong>500 MB</strong>
+              {activeTab === 'image' && (
+                <>
+                  支持 JPG、PNG、WebP、AVIF、BMP 等常见静态图片；单文件最大{' '}
+                  <strong>{formatBytes(readImageMaxUploadBytes())}</strong>
+                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限。
+                </>
+              )}
+              {activeTab === 'gif' && (
+                <>
+                  支持 GIF 动图；单文件最大 <strong>{formatBytes(readGifMaxUploadBytes())}</strong>
+                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限。
+                </>
+              )}
+              {activeTab === 'video' && (
+                <>
+                  支持 MP4、WebM、MOV 等常见视频；单文件最大{' '}
+                  <strong>{formatBytes(readVideoMaxUploadBytes())}</strong>
+                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限。
+                </>
+              )}
             </Paragraph>
            
           </Upload.Dragger>
@@ -568,7 +588,7 @@ export function HomePage() {
                   disabled={busy}
                   options={[
                     { label: '智能压缩', value: 'smart' },
-                    { label: '手动调节质量', value: 'manual' },
+                    { label: '手动调节压缩率', value: 'manual' },
                   ]}
                 />
               </div>
