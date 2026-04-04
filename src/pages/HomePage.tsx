@@ -32,7 +32,7 @@ import { Link as RouterLink } from 'react-router-dom'
 import { runImageCompress } from '../lib/compress/imageWorkerClient'
 import { preloadFfmpeg, runFfmpegCompress } from '../lib/compress/ffmpegWorkerClient'
 import { addJob } from '../lib/idb/db'
-import { makeThumbnailBlob } from '../lib/thumbnail'
+import { makeThumbnailBlob, makeVideoThumbnailBlob } from '../lib/thumbnail'
 import { formatBytes } from '../lib/formatBytes'
 import {
   maxUploadBytesForKind,
@@ -446,7 +446,12 @@ export function HomePage() {
           toast.success('压缩完成')
         }
 
-        const thumb = kind === 'gif' ? await makeThumbnailBlob(blob) : undefined
+        const thumb =
+          kind === 'gif'
+            ? await makeThumbnailBlob(blob)
+            : kind === 'video'
+              ? await makeVideoThumbnailBlob(blob)
+              : undefined
         await addJob({
           id: jobId,
           createdAt: Date.now(),

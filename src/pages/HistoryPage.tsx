@@ -60,7 +60,7 @@ export function HistoryPage() {
           处理历史
         </Title>
         <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 640 }}>
-          以下仅为本机 IndexedDB 中的元数据与可选缩略图；压缩成品默认不长期保存，需当时下载。
+          以下仅为本机 IndexedDB 中的元数据与可选缩略图（视频为结果首帧截图）；压缩成品默认不长期保存，需当时下载。
         </Paragraph>
       </header>
 
