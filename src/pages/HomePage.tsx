@@ -30,6 +30,10 @@ import {
   readVideoMaxUploadBytes,
 } from '../lib/fileUploadLimitSettings'
 import { readImageMinQualityDecimal, readImageMinQualityPercent } from '../lib/imageCompressSettings'
+import {
+  DEFAULT_VIDEO_COMPRESS_PERCENT,
+  videoCompressPercentToCrf,
+} from '../lib/compress/videoCrfPercent'
 import { resolveEncodeFormat } from '../lib/resolveImageFormat'
 import type { ImageCompressOptions, ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
 import styles from './HomePage.module.css'
@@ -118,7 +122,7 @@ export function HomePage() {
   const [smartTargetValue, setSmartTargetValue] = useState<number | null>(512)
   const [smartTargetUnit, setSmartTargetUnit] = useState<SmartTargetUnit>('kb')
   const [quality, setQuality] = useState(0.82)
-  const [crf, setCrf] = useState(28)
+  const [videoCompressPercent, setVideoCompressPercent] = useState(DEFAULT_VIDEO_COMPRESS_PERCENT)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('')
@@ -137,7 +141,6 @@ export function HomePage() {
     imageSmartMode?: boolean
   } | null>(null)
   const [ffmpegReady, setFfmpegReady] = useState(false)
-  const [ffmpegLoading, setFfmpegLoading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [activeTab, setActiveTabState] = useState<TabId>(() => readStoredTab())
@@ -152,6 +155,11 @@ export function HomePage() {
 
   const imageMinQualityPct = readImageMinQualityPercent()
   const imageMinQualityDec = readImageMinQualityDecimal()
+
+  const videoCrf = useMemo(
+    () => videoCompressPercentToCrf(videoCompressPercent),
+    [videoCompressPercent],
+  )
 
   useEffect(() => {
     setQuality((q) => Math.max(imageMinQualityDec, q))
@@ -169,21 +177,6 @@ export function HomePage() {
       return blob ? URL.createObjectURL(blob) : null
     })
   }, [])
-
-  const handlePreloadFfmpeg = useCallback(async () => {
-    setFfmpegLoading(true)
-    setError(null)
-    try {
-      await preloadFfmpeg()
-      setFfmpegReady(true)
-      setStatusText('')
-      toast.success('FFmpeg 已就绪（仍仅在本地运行）')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setFfmpegLoading(false)
-    }
-  }, [toast])
 
   const pickFile = useCallback(
     (file: File) => {
@@ -348,7 +341,7 @@ export function HomePage() {
           buf,
           file.name,
           kind === 'gif' ? 'gif' : 'video',
-          crf,
+          videoCrf,
           setProgress,
         )
         let blob = new Blob([out.buffer], { type: out.outputMime })
@@ -413,7 +406,7 @@ export function HomePage() {
       }
     },
     [
-      crf,
+      videoCrf,
       ffmpegReady,
       format,
       imageCompressMode,
@@ -707,19 +700,29 @@ export function HomePage() {
             style={{ marginTop: 16 }}
           >
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <div>
-                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-                  视频 CRF（越大体积越小，画质越低）
-                </Text>
-                <InputNumber
-                  style={{ width: '100%' }}
-                  min={18}
-                  max={40}
-                  value={crf}
-                  onChange={(v) => setCrf(typeof v === 'number' ? v : 28)}
-                  disabled={busy}
-                />
-              </div>
+              {activeTab === 'video' ? (
+                <div>
+                  <Flex justify="space-between" align="center" style={{ marginBottom: 8 }} wrap gap={8}>
+                    <Text type="secondary">压缩强度（抽象档位，非真实体积比例）</Text>
+                    <Text type="secondary">{videoCompressPercent}%</Text>
+                  </Flex>
+                  <Slider
+                    min={0}
+                    max={100}
+                    value={videoCompressPercent}
+                    onChange={setVideoCompressPercent}
+                    disabled={busy}
+                    tooltip={{ formatter: (v) => (v != null ? `${v}%` : '') }}
+                  />
+                  <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 12, fontSize: 13 }}>
+                    数值越大越倾向减小体积、画质越低；当前约对应 x264 CRF {videoCrf}（18～40）。
+                  </Paragraph>
+                </div>
+              ) : (
+                <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                  GIF 使用固定帧率与调色板压缩，不经过视频 CRF；切换到「视频」标签可调节 MP4 压缩强度。
+                </Paragraph>
+              )}
             </Space>
           </Card>
         )}
