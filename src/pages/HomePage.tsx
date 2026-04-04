@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
+  App,
   Button,
   Card,
   Flex,
   InputNumber,
-  message,
   Progress,
   Segmented,
   Select,
@@ -113,6 +113,8 @@ function defaultSmartTarget(fileSizeBytes: number): { value: number; unit: Smart
 }
 
 export function HomePage() {
+  const { message: toast } = App.useApp()
+
   const [format, setFormat] = useState<ImageFormatPreference>('original')
   const [imageCompressMode, setImageCompressMode] = useState<'smart' | 'manual'>('smart')
   /** null 表示输入框被清空，便于重新输入；不再用默认值强行回填 */
@@ -124,8 +126,6 @@ export function HomePage() {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('')
-  /** 保留原图等场景用 warning，避免仍显示绿色成功 */
-  const [bannerTone, setBannerTone] = useState<'success' | 'warning'>('success')
   const [error, setError] = useState<string | null>(null)
   const [resultBlob, setResultBlob] = useState<Blob | null>(null)
   const [resultName, setResultName] = useState('')
@@ -180,14 +180,14 @@ export function HomePage() {
     try {
       await preloadFfmpeg()
       setFfmpegReady(true)
-      setBannerTone('success')
-      setStatusText('FFmpeg 已就绪（仍仅在本地运行）')
+      setStatusText('')
+      toast.success('FFmpeg 已就绪（仍仅在本地运行）')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setFfmpegLoading(false)
     }
-  }, [])
+  }, [toast])
 
   const pickFile = useCallback(
     (file: File) => {
@@ -202,7 +202,6 @@ export function HomePage() {
       setSelectedFile(file)
       setError(null)
       setStatusText('')
-      setBannerTone('success')
       setResultBlob(null)
       setResultName('')
       setPreviewForBlob(null)
@@ -222,7 +221,6 @@ export function HomePage() {
     setSelectedFile(null)
     setError(null)
     setStatusText('')
-    setBannerTone('success')
   }, [busy])
 
   const processFile = useCallback(
@@ -304,18 +302,20 @@ export function HomePage() {
             imageSmartMode: imageCompressMode === 'smart',
           })
           setProgress(100)
-          setBannerTone(keptOriginal || targetUnmet ? 'warning' : 'success')
-          setStatusText(
-            keptOriginal
-              ? imageCompressMode === 'smart'
-                ? '完成：无法压缩到您设定的目标体积，已保留原图'
-                : '完成：当前参数下无法比原文件更小，已保留原图'
-              : targetUnmet
+          if (keptOriginal || targetUnmet) {
+            setStatusText(
+              keptOriginal
                 ? imageCompressMode === 'smart'
+                  ? '完成：无法压缩到您设定的目标体积，已保留原图'
+                  : '完成：当前参数下无法比原文件更小，已保留原图'
+                : imageCompressMode === 'smart'
                   ? '完成：未达目标体积，已输出最低质量下的最小文件，可下载使用'
-                  : '完成：无法压至原图以下，已输出最低质量下的最小文件，可下载使用'
-                : '完成',
-          )
+                  : '完成：无法压至原图以下，已输出最低质量下的最小文件，可下载使用',
+            )
+          } else {
+            setStatusText('')
+            toast.success('压缩完成')
+          }
 
           const thumb = await makeThumbnailBlob(blob)
           await addJob({
@@ -371,12 +371,12 @@ export function HomePage() {
           keptOriginal,
         })
         setProgress(100)
-        setBannerTone(keptOriginal ? 'warning' : 'success')
-        setStatusText(
-          keptOriginal
-            ? '完成：编码结果未小于原文件，已保留原文件'
-            : '完成',
-        )
+        if (keptOriginal) {
+          setStatusText('完成：编码结果未小于原文件，已保留原文件')
+        } else {
+          setStatusText('')
+          toast.success('压缩完成')
+        }
 
         const thumb = kind === 'gif' ? await makeThumbnailBlob(blob) : undefined
         await addJob({
@@ -424,6 +424,7 @@ export function HomePage() {
       setPreviewForBlob,
       smartTargetUnit,
       smartTargetValue,
+      toast,
     ],
   )
 
@@ -434,11 +435,11 @@ export function HomePage() {
       const f = files[0]
       if (!f) return
       if (files.length > 1) {
-        message.info('已拖入多个文件，当前每次处理 1 个，已为您选取第一个')
+        toast.info('已拖入多个文件，当前每次处理 1 个，已为您选取第一个')
       }
       pickFile(f)
     },
-    [pickFile],
+    [pickFile, toast],
   )
 
   const uploadProps: UploadProps = useMemo(
@@ -605,7 +606,7 @@ export function HomePage() {
               {imageCompressMode === 'smart' ? (
                 <div>
                   <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-                    目标最大体积（压缩后需不超过该值）
+                    目标最大体积
                   </Text>
                   <Space.Compact style={{ width: '100%', maxWidth: 360 }}>
                     <InputNumber
@@ -648,9 +649,9 @@ export function HomePage() {
                     />
                   </Space.Compact>
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
-                    将在 Worker 内对质量做二分搜索，在不超过目标的前提下尽量提高画质；质量下限见{' '}
+                    在小于目标体积的前提下尽量提高画质，压缩质量下限见{' '}
                     <RouterLink to="/settings">设置</RouterLink>
-                    （当前 {imageMinQualityPct}%）。未达标时输出该下限下的最小编码。
+                    （当前 {imageMinQualityPct}%）
                     {selectedFile && smartTargetApproxBytes != null ? (
                       <>
                         {' '}
@@ -745,7 +746,7 @@ export function HomePage() {
         )}
 
         {!busy && statusText && !error && (
-          <Alert style={{ marginTop: 16 }} type={bannerTone} showIcon message={statusText} />
+          <Alert style={{ marginTop: 16 }} type="warning" showIcon message={statusText} />
         )}
         {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
 

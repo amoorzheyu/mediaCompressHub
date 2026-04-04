@@ -55,6 +55,31 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* antd Message（App.useApp().message）：固定在视口右下角 */
+.ant-message {
+  top: auto !important;
+  right: 20px !important;
+  bottom: 20px !important;
+  left: auto !important;
+  transform: none !important;
+  width: auto !important;
+  max-width: calc(100vw - 40px);
+}
+
+.ant-message .ant-message-notice-wrapper {
+  text-align: end;
+}
+
+.ant-message .ant-message-notice-content {
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 12px 20px;
+}
+
+.ant-message .ant-message-notice .anticon {
+  font-size: 18px;
+}
+
 input:focus-visible,
 select:focus-visible,
 button:focus-visible {

@@ -1,4 +1,4 @@
-import { ConfigProvider, theme } from 'antd'
+import { App, ConfigProvider, theme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import type { ReactNode } from 'react'
 
@@ -40,7 +40,8 @@ export function AntdProvider({ children }: { children: ReactNode }) {
         },
       }}
     >
-      {children}
+      {/* message 轻提示：位置见 index.css（右下角） */}
+      <App message={{ duration: 2.4, maxCount: 3 }}>{children}</App>
     </ConfigProvider>
   )
 }
