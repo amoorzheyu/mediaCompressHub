@@ -24,6 +24,13 @@ import {
   readImageMinQualityPercent,
   writeImageMinQualityPercent,
 } from '../lib/imageCompressSettings'
+import {
+  readVideoCrfRange,
+  VIDEO_CRF_SETTING_ABS_MAX,
+  VIDEO_CRF_SETTING_ABS_MIN,
+  VIDEO_X264_CRF_ENCODE_MAX,
+  writeVideoCrfRange,
+} from '../lib/videoCrfRangeSettings'
 import styles from './SettingsPage.module.css'
 
 const MB = 1024 * 1024
@@ -56,6 +63,10 @@ export function SettingsPage() {
   const [usage, setUsage] = useState<{ usage?: number; quota?: number }>({})
   const [cleared, setCleared] = useState(false)
   const [imageMinQualityPct, setImageMinQualityPct] = useState(() => readImageMinQualityPercent())
+  const [videoCrfRangeMin, setVideoCrfRangeMin] = useState(() => readVideoCrfRange().min)
+  const [videoCrfRangeMax, setVideoCrfRangeMax] = useState(() => readVideoCrfRange().max)
+  const [videoCrfMinInput, setVideoCrfMinInput] = useState<number | null>(() => readVideoCrfRange().min)
+  const [videoCrfMaxInput, setVideoCrfMaxInput] = useState<number | null>(() => readVideoCrfRange().max)
   const [imageUnit, setImageUnit] = useState<SizeUnit>(() => defaultUnit(readImageMaxUploadBytes()))
   const [imageInput, setImageInput] = useState<number | null>(() =>
     bytesToInput(readImageMaxUploadBytes(), defaultUnit(readImageMaxUploadBytes())),
@@ -93,6 +104,15 @@ export function SettingsPage() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  const applyVideoCrfRange = useCallback((min: number, max: number) => {
+    writeVideoCrfRange(min, max)
+    const r = readVideoCrfRange()
+    setVideoCrfRangeMin(r.min)
+    setVideoCrfRangeMax(r.max)
+    setVideoCrfMinInput(r.min)
+    setVideoCrfMaxInput(r.max)
   }, [])
 
   const onClearHistory = () => {
@@ -141,6 +161,63 @@ export function SettingsPage() {
             />
             <Text strong style={{ minWidth: 48 }}>{imageMinQualityPct}%</Text>
           </Flex>
+        </Card>
+
+        <Card title="视频压缩 · CRF 上下限" size="small">
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+           CRF越大，视频体积越小，画质越低，范围为0～51
+          </Paragraph>
+          <Flex align="center" gap={16} wrap>
+            <div>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                下限
+              </Text>
+              <InputNumber
+                style={{ width: 120 }}
+                min={VIDEO_CRF_SETTING_ABS_MIN}
+                max={VIDEO_CRF_SETTING_ABS_MAX}
+                value={videoCrfMinInput ?? undefined}
+                onChange={(v) => {
+                  if (v == null || !Number.isFinite(v)) {
+                    setVideoCrfMinInput(null)
+                    return
+                  }
+                  applyVideoCrfRange(v, videoCrfRangeMax)
+                }}
+                onBlur={() => {
+                  if (videoCrfMinInput == null) {
+                    applyVideoCrfRange(VIDEO_CRF_SETTING_ABS_MIN, videoCrfRangeMax)
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                上限
+              </Text>
+              <InputNumber
+                style={{ width: 120 }}
+                min={VIDEO_CRF_SETTING_ABS_MIN}
+                max={VIDEO_CRF_SETTING_ABS_MAX}
+                value={videoCrfMaxInput ?? undefined}
+                onChange={(v) => {
+                  if (v == null || !Number.isFinite(v)) {
+                    setVideoCrfMaxInput(null)
+                    return
+                  }
+                  applyVideoCrfRange(videoCrfRangeMin, v)
+                }}
+                onBlur={() => {
+                  if (videoCrfMaxInput == null) {
+                    applyVideoCrfRange(videoCrfRangeMin, VIDEO_X264_CRF_ENCODE_MAX)
+                  }
+                }}
+              />
+            </div>
+          </Flex>
+          <Text type="secondary" style={{ fontSize: 12, marginTop: 12, display: 'block' }}>
+            当前生效区间：CRF {videoCrfRangeMin}～{videoCrfRangeMax}
+          </Text>
         </Card>
 
         <Card title="上传 · 单文件体积上限" size="small">

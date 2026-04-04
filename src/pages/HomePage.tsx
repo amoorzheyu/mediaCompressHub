@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import {
   Alert,
   App,
@@ -30,10 +30,8 @@ import {
   readVideoMaxUploadBytes,
 } from '../lib/fileUploadLimitSettings'
 import { readImageMinQualityDecimal, readImageMinQualityPercent } from '../lib/imageCompressSettings'
-import {
-  DEFAULT_VIDEO_COMPRESS_PERCENT,
-  videoCompressPercentToCrf,
-} from '../lib/compress/videoCrfPercent'
+import { videoCompressPercentToCrf, videoCrfToCompressPercent } from '../lib/compress/videoCrfPercent'
+import { readVideoCrfRange, readVideoTargetCrf, writeVideoTargetCrf } from '../lib/videoCrfRangeSettings'
 import { resolveEncodeFormat } from '../lib/resolveImageFormat'
 import type { ImageCompressOptions, ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
 import styles from './HomePage.module.css'
@@ -122,7 +120,7 @@ export function HomePage() {
   const [smartTargetValue, setSmartTargetValue] = useState<number | null>(512)
   const [smartTargetUnit, setSmartTargetUnit] = useState<SmartTargetUnit>('kb')
   const [quality, setQuality] = useState(0.82)
-  const [videoCompressPercent, setVideoCompressPercent] = useState(DEFAULT_VIDEO_COMPRESS_PERCENT)
+  const [, bumpVideoCrfUi] = useReducer((x: number) => x + 1, 0)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('')
@@ -156,9 +154,12 @@ export function HomePage() {
   const imageMinQualityPct = readImageMinQualityPercent()
   const imageMinQualityDec = readImageMinQualityDecimal()
 
-  const videoCrf = useMemo(
-    () => videoCompressPercentToCrf(videoCompressPercent),
-    [videoCompressPercent],
+  const videoCrfRange = readVideoCrfRange()
+  const videoTargetCrf = readVideoTargetCrf()
+  const videoCompressPercent = videoCrfToCompressPercent(
+    videoTargetCrf,
+    videoCrfRange.min,
+    videoCrfRange.max,
   )
 
   useEffect(() => {
@@ -341,7 +342,7 @@ export function HomePage() {
           buf,
           file.name,
           kind === 'gif' ? 'gif' : 'video',
-          videoCrf,
+          readVideoTargetCrf(),
           setProgress,
         )
         let blob = new Blob([out.buffer], { type: out.outputMime })
@@ -406,7 +407,6 @@ export function HomePage() {
       }
     },
     [
-      videoCrf,
       ffmpegReady,
       format,
       imageCompressMode,
@@ -703,19 +703,25 @@ export function HomePage() {
               {activeTab === 'video' ? (
                 <div>
                   <Flex justify="space-between" align="center" style={{ marginBottom: 8 }} wrap gap={8}>
-                    <Text type="secondary">压缩强度（抽象档位，非真实体积比例）</Text>
+                    <Text type="secondary">压缩强度</Text>
                     <Text type="secondary">{videoCompressPercent}%</Text>
                   </Flex>
                   <Slider
                     min={0}
                     max={100}
                     value={videoCompressPercent}
-                    onChange={setVideoCompressPercent}
+                    onChange={(pct) => {
+                      const crf = videoCompressPercentToCrf(pct, videoCrfRange.min, videoCrfRange.max)
+                      writeVideoTargetCrf(crf)
+                      bumpVideoCrfUi()
+                    }}
                     disabled={busy}
                     tooltip={{ formatter: (v) => (v != null ? `${v}%` : '') }}
                   />
                   <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 12, fontSize: 13 }}>
-                    数值越大越倾向减小体积、画质越低；当前约对应 x264 CRF {videoCrf}（18～40）。
+                    当前约对应 CRF {videoTargetCrf}（范围{' '}
+                    {videoCrfRange.min}～{videoCrfRange.max}，可在{' '}
+                    <RouterLink to="/settings">设置</RouterLink> 调整上下限）
                   </Paragraph>
                 </div>
               ) : (

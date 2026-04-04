@@ -2,6 +2,7 @@
 
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { cachedFfmpegCoreBlobURL } from '../lib/compress/ffmpegCoreCache'
+import { clampCrfForX264Encode } from '../lib/videoCrfRangeSettings'
 import type { FfmpegWorkerIn, FfmpegWorkerToMain } from '../types/compress'
 
 function postToMain(msg: FfmpegWorkerToMain, transfer?: Transferable[]) {
@@ -135,13 +136,14 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
       )
     } else {
       const out = `out_${jobId}.mp4`
+      const crfEnc = clampCrfForX264Encode(crf)
       await active.exec([
         '-i',
         input,
         '-c:v',
         'libx264',
         '-crf',
-        String(crf),
+        String(crfEnc),
         '-preset',
         'veryfast',
         '-pix_fmt',

@@ -1,20 +1,20 @@
-/** 将视频 CRF（18～40）与界面「压缩强度」0～100% 线性互转；百分比为抽象档位，非真实体积比例。 */
+/** 将「压缩强度」0～100% 与 CRF 区间线性互转；百分比为抽象档位，非真实体积比例。 */
 
-export const VIDEO_CRF_MIN = 18
-export const VIDEO_CRF_MAX = 40
-
-const SPAN = VIDEO_CRF_MAX - VIDEO_CRF_MIN
-
-export function videoCompressPercentToCrf(percent: number): number {
+export function videoCompressPercentToCrf(percent: number, crfMin: number, crfMax: number): number {
+  const lo = Math.min(crfMin, crfMax)
+  const hi = Math.max(crfMin, crfMax)
+  const span = hi - lo
   const p = Math.max(0, Math.min(100, percent))
-  const crf = Math.round(VIDEO_CRF_MIN + (p / 100) * SPAN)
-  return Math.max(VIDEO_CRF_MIN, Math.min(VIDEO_CRF_MAX, crf))
+  if (span <= 0) return lo
+  const crf = Math.round(lo + (p / 100) * span)
+  return Math.max(lo, Math.min(hi, crf))
 }
 
-export function videoCrfToCompressPercent(crf: number): number {
-  const c = Math.max(VIDEO_CRF_MIN, Math.min(VIDEO_CRF_MAX, crf))
-  return Math.round(((c - VIDEO_CRF_MIN) / SPAN) * 100)
+export function videoCrfToCompressPercent(crf: number, crfMin: number, crfMax: number): number {
+  const lo = Math.min(crfMin, crfMax)
+  const hi = Math.max(crfMin, crfMax)
+  const span = hi - lo
+  const c = Math.max(lo, Math.min(hi, crf))
+  if (span <= 0) return 0
+  return Math.round(((c - lo) / span) * 100)
 }
-
-/** 与默认 CRF 28 对齐的强度（约 45%） */
-export const DEFAULT_VIDEO_COMPRESS_PERCENT = videoCrfToCompressPercent(28)
