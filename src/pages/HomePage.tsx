@@ -5,7 +5,9 @@ import {
   Button,
   Card,
   Flex,
+  Image,
   InputNumber,
+  Modal,
   Progress,
   Segmented,
   Select,
@@ -13,10 +15,18 @@ import {
   Space,
   Switch,
   Tabs,
+  Tooltip,
   Typography,
   Upload,
 } from 'antd'
-import { DeleteOutlined, DownloadOutlined, InboxOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EyeOutlined,
+  InboxOutlined,
+  LoadingOutlined,
+  PlayCircleOutlined,
+} from '@ant-design/icons'
 import type { UploadProps } from 'antd'
 import { Link as RouterLink } from 'react-router-dom'
 import { runImageCompress } from '../lib/compress/imageWorkerClient'
@@ -93,7 +103,7 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-const { Text, Title, Paragraph, Link } = Typography
+const { Text, Title, Paragraph } = Typography
 
 function encodeFormatLabel(f: ImageEncodeFormat): string {
   if (f === 'jpeg') return 'JPG / JPEG（.jpg）'
@@ -143,6 +153,7 @@ export function HomePage() {
   } | null>(null)
   const [ffmpegReady, setFfmpegReady] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [activeTab, setActiveTabState] = useState<TabId>(() => readStoredTab())
 
@@ -199,6 +210,7 @@ export function HomePage() {
       setResultBlob(null)
       setResultName('')
       setPreviewForBlob(null)
+      setResultPreviewOpen(false)
       setLastStats(null)
       setProgress(0)
       if (detected === 'image') {
@@ -234,6 +246,7 @@ export function HomePage() {
       setResultBlob(null)
       setResultName('')
       setPreviewForBlob(null)
+      setResultPreviewOpen(false)
       setLastStats(null)
 
       const jobId = crypto.randomUUID()
@@ -544,9 +557,9 @@ export function HomePage() {
 
         {selectedFile && (
           <Card size="small" style={{ marginTop: 16 }} styles={{ body: { padding: '12px 16px' } }}>
-            <Flex align="center" justify="space-between" gap={12} wrap="wrap">
+            <div className={styles.fileCardGrid}>
               <div style={{ minWidth: 0 }}>
-                <Text strong style={{ display: 'block', wordBreak: 'break-all' }}>
+                <Text strong style={{ display: 'block', wordBreak: 'break-all', marginBottom: 0 }}>
                   {selectedFile.name}
                 </Text>
                 <Text type="secondary" style={{ fontSize: 13 }}>
@@ -554,15 +567,44 @@ export function HomePage() {
                   {selectedFile.type ? ` · ${selectedFile.type}` : ''}
                 </Text>
               </div>
-              <Space wrap>
-                <Button type="primary" icon={<PlayCircleOutlined />} onClick={onStartCompress} disabled={busy}>
-                  开始压缩
-                </Button>
-                <Button icon={<DeleteOutlined />} onClick={clearSelection} disabled={busy}>
-                  移除文件
-                </Button>
-              </Space>
-            </Flex>
+              <div className={styles.fileCardCenter}>
+                {resultBlob && previewUrl ? (
+                  <Space size="small" wrap={false}>
+                    <Tooltip title="预览压缩结果">
+                      <Button
+                        type="default"
+                        icon={<EyeOutlined />}
+                        onClick={() => setResultPreviewOpen(true)}
+                        aria-label="预览压缩结果"
+                      />
+                    </Tooltip>
+                    <Button
+                      type="default"
+                      icon={<DownloadOutlined />}
+                      iconPlacement="end"
+                      onClick={() => downloadBlob(resultBlob, resultName)}
+                    >
+                      下载结果
+                    </Button>
+                  </Space>
+                ) : null}
+              </div>
+              <div className={styles.fileCardActions}>
+                <Space wrap>
+                  <Button
+                    type="primary"
+                    icon={busy ? <LoadingOutlined /> : <PlayCircleOutlined />}
+                    onClick={onStartCompress}
+                    disabled={busy}
+                  >
+                    {busy ? `压缩中 ${Math.round(progress)}%` : '开始压缩'}
+                  </Button>
+                  <Button icon={<DeleteOutlined />} onClick={clearSelection} disabled={busy}>
+                    移除文件
+                  </Button>
+                </Space>
+              </div>
+            </div>
           </Card>
         )}
 
@@ -795,18 +837,30 @@ export function HomePage() {
           </Card>
         )}
 
-        {resultBlob && (
-          <Flex align="center" gap={12} wrap style={{ marginTop: 16 }}>
-            <Button type="primary" icon={<DownloadOutlined />} onClick={() => downloadBlob(resultBlob, resultName)}>
-              下载结果
-            </Button>
-            {previewUrl && (
-              <Link href={previewUrl} target="_blank" rel="noreferrer">
-                新窗口预览
-              </Link>
-            )}
-          </Flex>
-        )}
+        <Modal
+          title="压缩结果预览"
+          open={resultPreviewOpen}
+          onCancel={() => setResultPreviewOpen(false)}
+          footer={null}
+          centered
+          width={Math.min(900, typeof window !== 'undefined' ? window.innerWidth - 48 : 900)}
+          destroyOnHidden
+        >
+          {previewUrl && resultBlob && (
+            <div style={{ textAlign: 'center' }}>
+              {resultBlob.type.startsWith('video/') ? (
+                <video
+                  src={previewUrl}
+                  controls
+                  playsInline
+                  style={{ width: '100%', maxHeight: '70vh', verticalAlign: 'middle' }}
+                />
+              ) : (
+                <Image src={previewUrl} alt={resultName || '预览'} style={{ maxWidth: '100%', maxHeight: '70vh' }} />
+              )}
+            </div>
+          )}
+        </Modal>
       </section>
     </div>
   )

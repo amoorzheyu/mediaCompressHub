@@ -72,3 +72,39 @@
 .panel :global(.ant-upload.ant-upload-drag:hover) {
   border-color: #34d399 !important;
 }
+
+/* 当前文件卡片：左标题 / 中下载+预览 / 右操作；窄屏单列 */
+.fileCardGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.fileCardCenter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-inline: 8px;
+}
+
+.fileCardActions {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .fileCardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fileCardCenter {
+    justify-content: flex-start;
+    padding-inline: 0;
+  }
+
+  .fileCardActions {
+    justify-content: flex-start;
+  }
+}
