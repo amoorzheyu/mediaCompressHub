@@ -218,21 +218,21 @@ export function HomePage() {
 
   const fileCardSubtitle = useMemo(() => {
     if (!selectedFile) return null
-    if (resultBlob) {
-      const inType = selectedFile.type || ''
-      const outType = resultBlob.type || ''
-      const showOutMime = Boolean(outType && (!inType || inType !== outType))
+    const inTypeRaw = selectedFile.type || ''
+    const inTypeLabel = inTypeRaw || '无类型'
+    if (!resultBlob) {
       return (
         <>
-          {formatBytes(selectedFile.size)} → {formatBytes(resultBlob.size)}
-          {showOutMime ? ` · ${outType}` : ''}
+          {formatBytes(selectedFile.size)} · {inTypeLabel}
         </>
       )
     }
+    const outType = resultBlob.type || ''
+    const showOutputMime = Boolean(outType && outType !== inTypeRaw)
     return (
       <>
-        {formatBytes(selectedFile.size)}
-        {selectedFile.type ? ` · ${selectedFile.type}` : ''}
+        {formatBytes(selectedFile.size)} · {inTypeLabel} → {formatBytes(resultBlob.size)}
+        {showOutputMime ? ` · ${outType}` : ''}
       </>
     )
   }, [resultBlob, selectedFile])
@@ -247,7 +247,7 @@ export function HomePage() {
     return (
       <Text type="success" strong style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.4 }}>
         <FallOutlined aria-hidden style={{ marginRight: 4 }} />
-        约省 {pct}%
+         {pct}%
       </Text>
     )
   }, [lastStats, resultBlob, selectedFile])
@@ -652,15 +652,30 @@ export function HomePage() {
           <Card size="small" style={{ marginTop: 16 }} styles={{ body: { padding: '12px 16px' } }}>
             <div className={styles.fileCardGrid}>
               <div style={{ minWidth: 0 }}>
-                <Flex justify="space-between" align="flex-start" gap={8} style={{ marginBottom: 4 }}>
-                  <Text strong style={{ wordBreak: 'break-all', marginBottom: 0, flex: 1, minWidth: 0 }}>
-                    {selectedFile.name}
-                  </Text>
-                  {fileCardSavings}
-                </Flex>
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  {fileCardSubtitle}
-                </Text>
+                {fileCardSavings ? (
+                  <Flex justify="space-between" align="stretch" gap={8}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text strong style={{ display: 'block', wordBreak: 'break-all', marginBottom: 4 }}>
+                        {selectedFile.name}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 13 }}>
+                        {fileCardSubtitle}
+                      </Text>
+                    </div>
+                    <Flex align="center" style={{ flexShrink: 0 }}>
+                      {fileCardSavings}
+                    </Flex>
+                  </Flex>
+                ) : (
+                  <>
+                    <Text strong style={{ display: 'block', wordBreak: 'break-all', marginBottom: 4 }}>
+                      {selectedFile.name}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      {fileCardSubtitle}
+                    </Text>
+                  </>
+                )}
               </div>
               <div className={styles.fileCardCenter}>
                 {resultBlob && previewUrl ? (
