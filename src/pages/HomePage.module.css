@@ -37,7 +37,7 @@
 
 .lead {
   margin: 0;
-  max-width: 52ch;
+  max-width: 58ch;
   color: var(--muted);
   line-height: 1.65;
   font-size: 0.98rem;

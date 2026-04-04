@@ -264,11 +264,10 @@ export function HomePage() {
           纯本地 · 浏览器内处理
         </div>
         <h1 id="hero-title" className={styles.title}>
-          媒体压缩，数据不出本机
+          本地无损压缩 | 图片 / 视频 / GIF 100% 不上传，隐私零风险
         </h1>
         <p className={styles.lead}>
-          图片、GIF 与视频在<strong>专用 Web Worker</strong>中处理；历史记录仅存于本机{' '}
-          <strong>IndexedDB</strong>。无账户、无云端、无上传接口。
+          所有压缩全程在您的浏览器内完成，文件永不上传云端，无需注册登录，历史记录仅保存在本地，彻底告别隐私泄露风险。
         </p>
       </section>
 
