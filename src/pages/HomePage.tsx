@@ -245,8 +245,8 @@ export function HomePage() {
           setProgress(100)
           setStatusText(
             keptOriginal
-              ? '完成：当前参数下无法比原文件更小，已保留原图（未上传任何数据）'
-              : '完成（未上传任何数据）',
+              ? '完成：当前参数下无法比原文件更小，已保留原图'
+              : '完成',
           )
 
           const thumb = await makeThumbnailBlob(blob)
@@ -305,8 +305,8 @@ export function HomePage() {
         setProgress(100)
         setStatusText(
           keptOriginal
-            ? '完成：编码结果未小于原文件，已保留原文件（未上传任何数据）'
-            : '完成（未上传任何数据）',
+            ? '完成：编码结果未小于原文件，已保留原文件'
+            : '完成',
         )
 
         const thumb = kind === 'gif' ? await makeThumbnailBlob(blob) : undefined
