@@ -96,7 +96,6 @@ function encodeFormatLabel(f: ImageEncodeFormat): string {
 export function HomePage() {
   const [format, setFormat] = useState<ImageFormatPreference>('original')
   const [quality, setQuality] = useState(0.82)
-  const [maxWidth, setMaxWidth] = useState(1920)
   const [crf, setCrf] = useState(28)
   const [scaleWidth, setScaleWidth] = useState(720)
   const [busy, setBusy] = useState(false)
@@ -205,7 +204,6 @@ export function HomePage() {
             {
               format: encodeFormat,
               quality,
-              maxWidth: maxWidth > 0 ? maxWidth : undefined,
             },
             setProgress,
           )
@@ -304,7 +302,7 @@ export function HomePage() {
         setBusy(false)
       }
     },
-    [crf, ffmpegReady, format, maxWidth, quality, scaleWidth, setPreviewForBlob],
+    [crf, ffmpegReady, format, quality, scaleWidth, setPreviewForBlob],
   )
 
   const onDrop = useCallback(
@@ -469,19 +467,9 @@ export function HomePage() {
                   tooltip={{ formatter: (v) => `${v}%` }}
                 />
               </div>
-              <div>
-                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-                  最大边长（px，0 表示不缩放）
-                </Text>
-                <InputNumber
-                  style={{ width: '100%' }}
-                  min={0}
-                  max={16384}
-                  value={maxWidth}
-                  onChange={(v) => setMaxWidth(typeof v === 'number' ? v : 0)}
-                  disabled={busy}
-                />
-              </div>
+              <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 13 }}>
+                不调整像素尺寸，仅按所选格式与质量重新编码以减小文件体积。
+              </Paragraph>
             </Space>
           </Card>
         )}
