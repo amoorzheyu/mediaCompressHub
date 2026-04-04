@@ -684,7 +684,7 @@ export function HomePage() {
                     tooltip={{ formatter: (v) => `${v}%` }}
                   />
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
-                    压缩质量下限 {imageMinQualityPct}% 可在{' '}
+                    压缩质量越低，压缩体积越小，压缩质量下限 {imageMinQualityPct}% 可在{' '}
                     <RouterLink to="/settings">设置</RouterLink> 修改
                   </Paragraph>
                 </div>
