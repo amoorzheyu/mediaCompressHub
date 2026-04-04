@@ -551,12 +551,6 @@ export function HomePage() {
             type="warning"
             showIcon
             message="标签与文件类型不一致"
-            description={
-              <>
-                当前标签为「{TABS.find((x) => x.id === activeTab)?.label}」，已选文件为 {kindLabel(fileKind!)}。
-                点击「开始压缩」将自动切换到正确标签并处理，或请先移除文件后再切换标签。
-              </>
-            }
           />
         )}
 
