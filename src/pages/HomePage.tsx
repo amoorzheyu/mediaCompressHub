@@ -108,6 +108,8 @@ export function HomePage() {
     inBytes: number
     outBytes: number
     inName: string
+    /** 重编码无法比原文件更小，已保留原文件字节 */
+    keptOriginal?: boolean
   } | null>(null)
   const [ffmpegReady, setFfmpegReady] = useState(false)
   const [ffmpegLoading, setFfmpegLoading] = useState(false)
@@ -215,13 +217,23 @@ export function HomePage() {
               : out.outputMime === 'image/webp'
                 ? '.webp'
                 : '.png'
-          const name = `${base}-compressed${ext}`
+          const keptOriginal = Boolean(out.usedOriginalFallback)
+          const name = keptOriginal ? file.name : `${base}-compressed${ext}`
           setResultBlob(blob)
           setResultName(name)
           setPreviewForBlob(blob)
-          setLastStats({ inBytes, outBytes: blob.size, inName: file.name })
+          setLastStats({
+            inBytes,
+            outBytes: blob.size,
+            inName: file.name,
+            keptOriginal,
+          })
           setProgress(100)
-          setStatusText('完成（未上传任何数据）')
+          setStatusText(
+            keptOriginal
+              ? '完成：当前参数下无法比原文件更小，已保留原图（未上传任何数据）'
+              : '完成（未上传任何数据）',
+          )
 
           const thumb = await makeThumbnailBlob(blob)
           await addJob({
@@ -233,7 +245,7 @@ export function HomePage() {
             inputBytes: inBytes,
             outputMime: out.outputMime,
             outputBytes: blob.size,
-            ratio: inBytes ? 1 - blob.size / inBytes : 0,
+            ratio: keptOriginal || !inBytes ? 0 : Math.max(0, 1 - blob.size / inBytes),
             status: 'done',
             width: out.width,
             height: out.height,
@@ -258,16 +270,32 @@ export function HomePage() {
           scaleWidth,
           setProgress,
         )
-        const blob = new Blob([out.buffer], { type: out.outputMime })
+        let blob = new Blob([out.buffer], { type: out.outputMime })
+        let outputFileName = out.outputFileName
+        let keptOriginal = false
+        if (blob.size >= inBytes) {
+          const origBuf = await file.arrayBuffer()
+          blob = new Blob([origBuf], { type: file.type || out.outputMime })
+          outputFileName = file.name
+          keptOriginal = true
+        }
         setResultBlob(blob)
-        setResultName(out.outputFileName)
+        setResultName(outputFileName)
         setPreviewForBlob(blob)
-        setLastStats({ inBytes, outBytes: blob.size, inName: file.name })
+        setLastStats({
+          inBytes,
+          outBytes: blob.size,
+          inName: file.name,
+          keptOriginal,
+        })
         setProgress(100)
-        setStatusText('完成（未上传任何数据）')
+        setStatusText(
+          keptOriginal
+            ? '完成：编码结果未小于原文件，已保留原文件（未上传任何数据）'
+            : '完成（未上传任何数据）',
+        )
 
-        const thumb =
-          kind === 'gif' ? await makeThumbnailBlob(new Blob([out.buffer], { type: 'image/gif' })) : undefined
+        const thumb = kind === 'gif' ? await makeThumbnailBlob(blob) : undefined
         await addJob({
           id: jobId,
           createdAt: Date.now(),
@@ -275,9 +303,9 @@ export function HomePage() {
           inputName: file.name,
           inputMime: file.type,
           inputBytes: inBytes,
-          outputMime: out.outputMime,
+          outputMime: keptOriginal ? file.type || out.outputMime : out.outputMime,
           outputBytes: blob.size,
-          ratio: inBytes ? 1 - blob.size / inBytes : 0,
+          ratio: keptOriginal || !inBytes ? 0 : Math.max(0, 1 - blob.size / inBytes),
           status: 'done',
           thumbnailBlob: thumb,
         })
@@ -355,10 +383,11 @@ export function HomePage() {
           纯本地 · 浏览器内处理
         </div>
         <h1 id="hero-title" className={styles.title}>
-          本地无损压缩 | 图片 / 视频 / GIF 100% 不上传，隐私零风险
+          本地智能压缩 | 图片 / 视频 / GIF 100% 不上传，隐私零风险
         </h1>
         <p className={styles.lead}>
-          所有压缩全程在您的浏览器内完成，文件永不上传云端，无需注册登录，历史记录仅保存在本地，彻底告别隐私泄露风险。
+          优先在相同像素下减小体积：能无损缩小就用无损（如 PNG），做不到目标体积时会自动采用有损编码（如 JPG / WebP）。
+          处理全程在您的浏览器内完成，文件永不上传云端，历史记录仅保存在本地。
         </p>
       </section>
 
@@ -426,7 +455,8 @@ export function HomePage() {
           <Card title="图片压缩 · 输出选项" size="small" style={{ marginTop: 16 }}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                默认<strong>保持与原图相同的编码格式</strong>（如 JPG 仍输出 JPG）；也可指定转换为 WebP / PNG 等。
+                默认<strong>保持与原图相同的编码格式</strong>（如 JPG 仍输出 JPG）；也可指定转换为 WebP / PNG。
+                输出<strong>不会比原文件更大</strong>：若无损 PNG 仍偏大，会自动改用有损 WebP；若最低有损质量仍无法缩小，则保留原文件。
               </Paragraph>
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
@@ -468,7 +498,7 @@ export function HomePage() {
                 />
               </div>
               <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 13 }}>
-                不调整像素尺寸，仅按所选格式与质量重新编码以减小文件体积。
+                不调整像素尺寸，仅重新编码以减小体积；有损/无损由「能否在不大于原体积的前提下编码」决定，质量滑条只表示有损时的上限偏好。
               </Paragraph>
             </Space>
           </Card>
@@ -482,7 +512,7 @@ export function HomePage() {
           >
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                首次处理时会下载 FFmpeg 核心（约数十 MB），仅在您的浏览器缓存中。
+                首次处理时会下载 FFmpeg 核心（约数十 MB），仅在您的浏览器缓存中。若编码结果体积不小于原文件，将自动保留原文件，避免出现「越压越大」。
               </Paragraph>
               <Button
                 onClick={() => void handlePreloadFfmpeg()}
@@ -541,11 +571,13 @@ export function HomePage() {
               <Text>
                 {lastStats.inName}: {formatBytes(lastStats.inBytes)} → {formatBytes(lastStats.outBytes)}
               </Text>
-              {lastStats.inBytes > 0 && (
+              {lastStats.keptOriginal ? (
+                <Text type="secondary">体积未增大（已保留原文件）</Text>
+              ) : lastStats.inBytes > 0 && lastStats.outBytes < lastStats.inBytes ? (
                 <Text type="success" strong>
                   约省 {(100 * (1 - lastStats.outBytes / lastStats.inBytes)).toFixed(1)}%
                 </Text>
-              )}
+              ) : null}
             </Flex>
           </Card>
         )}

@@ -29,6 +29,8 @@ export type ImageWorkerToMain =
       outputMime: string
       width: number
       height: number
+      /** 无法在减小体积的前提下重编码，已退回原始字节 */
+      usedOriginalFallback?: boolean
     }
   | { type: 'image:error'; jobId: string; message: string }
 

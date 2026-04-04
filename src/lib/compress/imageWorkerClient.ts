@@ -17,7 +17,13 @@ export function runImageCompress(
   inputMime: string,
   options: ImageCompressOptions,
   onProgress: (p: number) => void,
-): Promise<{ buffer: ArrayBuffer; outputMime: string; width: number; height: number }> {
+): Promise<{
+    buffer: ArrayBuffer
+    outputMime: string
+    width: number
+    height: number
+    usedOriginalFallback?: boolean
+  }> {
   const w = getWorker()
   return new Promise((resolve, reject) => {
     const onMessage = (ev: MessageEvent<ImageWorkerToMain>) => {
@@ -34,6 +40,7 @@ export function runImageCompress(
           outputMime: msg.outputMime,
           width: msg.width,
           height: msg.height,
+          usedOriginalFallback: msg.usedOriginalFallback,
         })
         return
       }
