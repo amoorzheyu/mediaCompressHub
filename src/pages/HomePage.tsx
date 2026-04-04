@@ -642,20 +642,20 @@ export function HomePage() {
                 <>
                   支持 JPG、PNG、WebP、AVIF、BMP 等常见静态图片；单文件最大{' '}
                   <strong>{formatBytes(readImageMaxUploadBytes())}</strong>
-                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限。
+                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限
                 </>
               )}
               {activeTab === 'gif' && (
                 <>
                   支持 GIF 动图；单文件最大 <strong>{formatBytes(readGifMaxUploadBytes())}</strong>
-                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限。
+                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限
                 </>
               )}
               {activeTab === 'video' && (
                 <>
                   支持 MP4、WebM、MOV 等常见视频；单文件最大{' '}
                   <strong>{formatBytes(readVideoMaxUploadBytes())}</strong>
-                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限。
+                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限
                 </>
               )}
             </Paragraph>
@@ -837,7 +837,7 @@ export function HomePage() {
                         ) : null}
                       </>
                     ) : selectedFile ? (
-                      <> 输入框为空时请填入数字后再压缩。</>
+                      <> 输入框为空时请填入数字后再压缩</>
                     ) : null}
                   </Paragraph>
                 </div>
@@ -909,7 +909,7 @@ export function HomePage() {
                 </div>
               ) : (
                 <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                  GIF 使用固定帧率与调色板压缩，不经过视频 CRF；切换到「视频」标签可调节 MP4 压缩强度。
+                  GIF 使用固定帧率与调色板压缩，不经过视频 CRF
                 </Paragraph>
               )}
             </Space>
