@@ -705,21 +705,11 @@ export function HomePage() {
 
         {(activeTab === 'gif' || activeTab === 'video') && (
           <Card
-            title={activeTab === 'gif' ? 'GIF 压缩（FFmpeg · 本地 Worker）' : '视频压缩（FFmpeg · 本地 Worker）'}
+            title={activeTab === 'gif' ? 'GIF 压缩' : '视频压缩'}
             size="small"
             style={{ marginTop: 16 }}
           >
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                首次处理时会下载 FFmpeg 核心（约数十 MB），仅在您的浏览器缓存中。若编码结果体积不小于原文件，将自动保留原文件，避免出现「越压越大」。
-              </Paragraph>
-              <Button
-                onClick={() => void handlePreloadFfmpeg()}
-                disabled={busy || ffmpegLoading || ffmpegReady}
-                loading={ffmpegLoading}
-              >
-                {ffmpegReady ? 'FFmpeg 已预加载' : '预加载 FFmpeg'}
-              </Button>
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
                   视频 CRF（越大体积越小，画质越低）
