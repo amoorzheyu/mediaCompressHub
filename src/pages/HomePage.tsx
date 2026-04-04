@@ -578,7 +578,7 @@ export function HomePage() {
                   disabled={busy}
                   options={[
                     { label: '智能压缩', value: 'smart' },
-                    { label: '手动调节压缩率', value: 'manual' },
+                    { label: '手动调节压缩质量', value: 'manual' },
                   ]}
                 />
               </div>
@@ -672,7 +672,7 @@ export function HomePage() {
               ) : (
                 <div>
                   <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
-                    <Text type="secondary">质量上限</Text>
+                    <Text type="secondary">压缩质量</Text>
                     <Text strong>{(quality * 100).toFixed(0)}%</Text>
                   </Flex>
                   <Slider
@@ -684,7 +684,7 @@ export function HomePage() {
                     tooltip={{ formatter: (v) => `${v}%` }}
                   />
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
-                    压缩率下限 {imageMinQualityPct}% 可在{' '}
+                    压缩质量下限 {imageMinQualityPct}% 可在{' '}
                     <RouterLink to="/settings">设置</RouterLink> 修改
                   </Paragraph>
                 </div>
