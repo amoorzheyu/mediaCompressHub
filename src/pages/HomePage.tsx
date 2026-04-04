@@ -674,8 +674,8 @@ export function HomePage() {
                     tooltip={{ formatter: (v) => `${v}%` }}
                   />
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
-                    输出体积默认不超过原图大小；编码会在该质量上限内二分尝试，尽量提高清晰度。下限 {imageMinQualityPct}% 可在{' '}
-                    <RouterLink to="/settings">设置</RouterLink> 修改。
+                    压缩率下限 {imageMinQualityPct}% 可在{' '}
+                    <RouterLink to="/settings">设置</RouterLink> 修改
                   </Paragraph>
                 </div>
               )}
