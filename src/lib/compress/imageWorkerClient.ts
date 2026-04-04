@@ -23,6 +23,7 @@ export function runImageCompress(
     width: number
     height: number
     usedOriginalFallback?: boolean
+    targetUnmet?: boolean
   }> {
   const w = getWorker()
   return new Promise((resolve, reject) => {
@@ -41,6 +42,7 @@ export function runImageCompress(
           width: msg.width,
           height: msg.height,
           usedOriginalFallback: msg.usedOriginalFallback,
+          targetUnmet: msg.targetUnmet,
         })
         return
       }

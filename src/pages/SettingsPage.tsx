@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Card, Modal, Space, Typography } from 'antd'
+import { Button, Card, Flex, Modal, Slider, Space, Typography } from 'antd'
 import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
 import { clearAllJobs } from '../lib/idb/db'
 import { formatBytes } from '../lib/formatBytes'
+import {
+  DEFAULT_IMAGE_MIN_QUALITY_PERCENT,
+  IMAGE_MIN_QUALITY_MAX_PCT,
+  IMAGE_MIN_QUALITY_MIN_PCT,
+  readImageMinQualityPercent,
+  writeImageMinQualityPercent,
+} from '../lib/imageCompressSettings'
 import styles from './SettingsPage.module.css'
 
 const { Title, Paragraph, Text } = Typography
@@ -10,6 +17,7 @@ const { Title, Paragraph, Text } = Typography
 export function SettingsPage() {
   const [usage, setUsage] = useState<{ usage?: number; quota?: number }>({})
   const [cleared, setCleared] = useState(false)
+  const [imageMinQualityPct, setImageMinQualityPct] = useState(() => readImageMinQualityPercent())
 
   const refreshEstimate = useCallback(async () => {
     if (!navigator.storage?.estimate) {
@@ -60,6 +68,31 @@ export function SettingsPage() {
       </Title>
 
       <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 640 }}>
+        <Card title="图片压缩 · 最低质量" size="small">
+          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            智能压缩的二分下界、手动调节滑块的最小值，以及「未达目标体积」时输出的有损编码，均不会低于此处设定。默认{' '}
+            {DEFAULT_IMAGE_MIN_QUALITY_PERCENT}%，保存在本机浏览器。
+          </Paragraph>
+          <Flex align="center" gap={16} wrap>
+            <Slider
+              style={{ flex: 1, minWidth: 200, maxWidth: 400 }}
+              min={IMAGE_MIN_QUALITY_MIN_PCT}
+              max={IMAGE_MIN_QUALITY_MAX_PCT}
+              value={imageMinQualityPct}
+              onChange={(v) => {
+                setImageMinQualityPct(v)
+                writeImageMinQualityPercent(v)
+              }}
+              marks={{
+                [IMAGE_MIN_QUALITY_MIN_PCT]: `${IMAGE_MIN_QUALITY_MIN_PCT}%`,
+                [DEFAULT_IMAGE_MIN_QUALITY_PERCENT]: `${DEFAULT_IMAGE_MIN_QUALITY_PERCENT}%`,
+                [IMAGE_MIN_QUALITY_MAX_PCT]: `${IMAGE_MIN_QUALITY_MAX_PCT}%`,
+              }}
+            />
+            <Text strong style={{ minWidth: 48 }}>{imageMinQualityPct}%</Text>
+          </Flex>
+        </Card>
+
         <Card title="数据如何存放" size="small">
           <ul className={styles.list}>
             <li>

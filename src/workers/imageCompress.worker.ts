@@ -2,7 +2,12 @@
 
 import type { ImageEncodeFormat, ImageWorkerToMain, MainToImageWorker } from '../types/compress'
 
-const MIN_QUALITY = 0.36
+const DEFAULT_MIN_QUALITY = 0.2
+
+function clampMinQuality(v: number | undefined): number {
+  const raw = v ?? DEFAULT_MIN_QUALITY
+  return Math.min(0.98, Math.max(0.05, raw))
+}
 
 function postToMain(msg: ImageWorkerToMain, transfer?: Transferable[]) {
   ;(self as DedicatedWorkerGlobalScope).postMessage(msg, transfer ?? [])
@@ -21,61 +26,77 @@ async function encodeOnce(
 }
 
 /**
- * 在「输出体积不大于原文件」前提下尽量提高质量：
+ * 在「输出体积不大于 budgetBytes」前提下尽量提高质量（二分法在质量轴上搜索）：
  * - PNG：先无损；若仍更大则改为有损 WebP 并在质量上限内搜索。
- * - JPEG/WebP：从用户质量向下搜索；若最低质量仍更大则退回原文件。
+ * - JPEG/WebP：从质量上限向下二分；若最低质量仍大于预算，则输出该最低质量结果并标记 targetUnmet。
  */
-async function encodeUnderInputSize(
+async function encodeUnderBudget(
   canvas: OffscreenCanvas,
-  inputBuffer: ArrayBuffer,
-  inputMime: string,
+  budgetBytes: number,
   format: ImageEncodeFormat,
-  userQuality: number,
-): Promise<{ buffer: ArrayBuffer; outputMime: string; usedOriginalFallback: boolean }> {
-  const inputSize = inputBuffer.byteLength
-  const qCeil = Math.min(0.98, Math.max(MIN_QUALITY, userQuality))
+  qualityCeil: number,
+  minQ: number,
+): Promise<{
+  buffer: ArrayBuffer
+  outputMime: string
+  usedOriginalFallback: boolean
+  targetUnmet: boolean
+}> {
+  const budget = Math.max(1, budgetBytes)
+  const qCeil = Math.min(0.98, Math.max(minQ, qualityCeil))
 
   const tryLossyMime = async (
     mime: string,
     ceiling: number,
-  ): Promise<{ buffer: ArrayBuffer; outputMime: string } | null> => {
+  ): Promise<{ buffer: ArrayBuffer; outputMime: string; targetUnmet: boolean }> => {
     const top = await encodeOnce(canvas, mime, ceiling)
-    if (top.size <= inputSize) {
-      return { buffer: top.buf, outputMime: mime }
+    if (top.size <= budget) {
+      return { buffer: top.buf, outputMime: mime, targetUnmet: false }
     }
-    const bottom = await encodeOnce(canvas, mime, MIN_QUALITY)
-    if (bottom.size > inputSize) return null
+    const bottom = await encodeOnce(canvas, mime, minQ)
+    if (bottom.size > budget) {
+      return { buffer: bottom.buf, outputMime: mime, targetUnmet: true }
+    }
 
-    let lo = MIN_QUALITY
+    let lo = minQ
     let hi = ceiling
     for (let i = 0; i < 12; i++) {
       const mid = (lo + hi) / 2
       const r = await encodeOnce(canvas, mime, mid)
-      if (r.size <= inputSize) lo = mid
+      if (r.size <= budget) lo = mid
       else hi = mid
     }
     const best = await encodeOnce(canvas, mime, lo)
-    return { buffer: best.buf, outputMime: mime }
+    return { buffer: best.buf, outputMime: mime, targetUnmet: false }
   }
 
   if (format === 'png') {
     const png = await encodeOnce(canvas, 'image/png')
-    if (png.size <= inputSize) {
-      return { buffer: png.buf, outputMime: 'image/png', usedOriginalFallback: false }
+    if (png.size <= budget) {
+      return {
+        buffer: png.buf,
+        outputMime: 'image/png',
+        usedOriginalFallback: false,
+        targetUnmet: false,
+      }
     }
     const webp = await tryLossyMime('image/webp', qCeil)
-    if (webp) {
-      return { buffer: webp.buffer, outputMime: webp.outputMime, usedOriginalFallback: false }
+    return {
+      buffer: webp.buffer,
+      outputMime: webp.outputMime,
+      usedOriginalFallback: false,
+      targetUnmet: webp.targetUnmet,
     }
-    return { buffer: inputBuffer, outputMime: inputMime, usedOriginalFallback: true }
   }
 
   const mime = format === 'jpeg' ? 'image/jpeg' : 'image/webp'
   const lossy = await tryLossyMime(mime, qCeil)
-  if (lossy) {
-    return { buffer: lossy.buffer, outputMime: lossy.outputMime, usedOriginalFallback: false }
+  return {
+    buffer: lossy.buffer,
+    outputMime: lossy.outputMime,
+    usedOriginalFallback: false,
+    targetUnmet: lossy.targetUnmet,
   }
-  return { buffer: inputBuffer, outputMime: inputMime, usedOriginalFallback: true }
 }
 
 self.onmessage = async (ev: MessageEvent<MainToImageWorker>) => {
@@ -100,12 +121,16 @@ self.onmessage = async (ev: MessageEvent<MainToImageWorker>) => {
     bitmap.close()
 
     postToMain({ type: 'image:progress', jobId, progress: 70 })
-    const { buffer: outBuf, outputMime, usedOriginalFallback } = await encodeUnderInputSize(
+    const budgetBytes = options.maxOutputBytes ?? buffer.byteLength
+    const minQ = clampMinQuality(options.minQuality)
+    const qualityCeil =
+      options.qualityCeiling ?? Math.min(0.98, Math.max(minQ, options.quality))
+    const { buffer: outBuf, outputMime, usedOriginalFallback, targetUnmet } = await encodeUnderBudget(
       canvas,
-      buffer,
-      inputMime || 'application/octet-stream',
+      budgetBytes,
       options.format,
-      options.quality,
+      qualityCeil,
+      minQ,
     )
 
     postToMain(
@@ -117,6 +142,7 @@ self.onmessage = async (ev: MessageEvent<MainToImageWorker>) => {
         width: w,
         height: h,
         usedOriginalFallback,
+        targetUnmet,
       },
       [outBuf],
     )

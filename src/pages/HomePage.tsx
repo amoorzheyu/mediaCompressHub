@@ -7,6 +7,7 @@ import {
   InputNumber,
   message,
   Progress,
+  Segmented,
   Select,
   Slider,
   Space,
@@ -16,13 +17,15 @@ import {
 } from 'antd'
 import { DeleteOutlined, DownloadOutlined, InboxOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
+import { Link as RouterLink } from 'react-router-dom'
 import { runImageCompress } from '../lib/compress/imageWorkerClient'
 import { preloadFfmpeg, runFfmpegCompress } from '../lib/compress/ffmpegWorkerClient'
 import { addJob } from '../lib/idb/db'
 import { makeThumbnailBlob } from '../lib/thumbnail'
 import { formatBytes } from '../lib/formatBytes'
+import { readImageMinQualityDecimal, readImageMinQualityPercent } from '../lib/imageCompressSettings'
 import { resolveEncodeFormat } from '../lib/resolveImageFormat'
-import type { ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
+import type { ImageCompressOptions, ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
 import styles from './HomePage.module.css'
 
 function classifyFile(file: File): 'image' | 'gif' | 'video' {
@@ -97,14 +100,32 @@ function encodeFormatLabel(f: ImageEncodeFormat): string {
   return 'WebP（.webp）'
 }
 
+type SmartTargetUnit = 'kb' | 'mb'
+
+/** 智能压缩默认目标：约为原体积的 65%，且不超过原图；小图用 KB、大图用 MB 更易读 */
+function defaultSmartTarget(fileSizeBytes: number): { value: number; unit: SmartTargetUnit } {
+  const targetBytes = Math.min(fileSizeBytes, Math.max(1, Math.floor(fileSizeBytes * 0.65)))
+  if (targetBytes < 1024 * 1024) {
+    return { value: Math.max(1, Math.round(targetBytes / 1024)), unit: 'kb' }
+  }
+  const mb = targetBytes / (1024 * 1024)
+  return { value: Math.round(mb * 10_000) / 10_000, unit: 'mb' }
+}
+
 export function HomePage() {
   const [format, setFormat] = useState<ImageFormatPreference>('original')
+  const [imageCompressMode, setImageCompressMode] = useState<'smart' | 'manual'>('smart')
+  /** null 表示输入框被清空，便于重新输入；不再用默认值强行回填 */
+  const [smartTargetValue, setSmartTargetValue] = useState<number | null>(512)
+  const [smartTargetUnit, setSmartTargetUnit] = useState<SmartTargetUnit>('kb')
   const [quality, setQuality] = useState(0.82)
   const [crf, setCrf] = useState(28)
   const [scaleWidth, setScaleWidth] = useState(720)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('')
+  /** 保留原图等场景用 warning，避免仍显示绿色成功 */
+  const [bannerTone, setBannerTone] = useState<'success' | 'warning'>('success')
   const [error, setError] = useState<string | null>(null)
   const [resultBlob, setResultBlob] = useState<Blob | null>(null)
   const [resultName, setResultName] = useState('')
@@ -112,8 +133,12 @@ export function HomePage() {
     inBytes: number
     outBytes: number
     inName: string
-    /** 重编码无法比原文件更小，已保留原文件字节 */
+    /** 重编码未采用压缩结果，已保留原文件字节（GIF/视频等） */
     keptOriginal?: boolean
+    /** 图片：最低质量仍大于体积预算，已输出该最小编码 */
+    targetUnmet?: boolean
+    /** 与 targetUnmet 配套，仅图片有意义 */
+    imageSmartMode?: boolean
   } | null>(null)
   const [ffmpegReady, setFfmpegReady] = useState(false)
   const [ffmpegLoading, setFfmpegLoading] = useState(false)
@@ -128,6 +153,13 @@ export function HomePage() {
 
   const fileKind = selectedFile ? classifyFile(selectedFile) : null
   const tabFileMismatch = Boolean(selectedFile && fileKind && fileKind !== activeTab)
+
+  const imageMinQualityPct = readImageMinQualityPercent()
+  const imageMinQualityDec = readImageMinQualityDecimal()
+
+  useEffect(() => {
+    setQuality((q) => Math.max(imageMinQualityDec, q))
+  }, [imageMinQualityDec])
 
   useEffect(() => {
     return () => {
@@ -148,6 +180,7 @@ export function HomePage() {
     try {
       await preloadFfmpeg()
       setFfmpegReady(true)
+      setBannerTone('success')
       setStatusText('FFmpeg 已就绪（仍仅在本地运行）')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -169,11 +202,17 @@ export function HomePage() {
       setSelectedFile(file)
       setError(null)
       setStatusText('')
+      setBannerTone('success')
       setResultBlob(null)
       setResultName('')
       setPreviewForBlob(null)
       setLastStats(null)
       setProgress(0)
+      if (detected === 'image') {
+        const d = defaultSmartTarget(file.size)
+        setSmartTargetValue(d.value)
+        setSmartTargetUnit(d.unit)
+      }
     },
     [setPreviewForBlob, setTab],
   )
@@ -183,6 +222,7 @@ export function HomePage() {
     setSelectedFile(null)
     setError(null)
     setStatusText('')
+    setBannerTone('success')
   }, [busy])
 
   const processFile = useCallback(
@@ -212,17 +252,35 @@ export function HomePage() {
             throw new Error('不支持的图片类型，请使用常见位图格式')
           }
           const encodeFormat = resolveEncodeFormat(format, file)
-          setStatusText('在后台 Worker 中压缩图片…')
-          const out = await runImageCompress(
-            jobId,
-            buf,
-            file.type || 'image/jpeg',
-            {
+          let imageOptions: ImageCompressOptions
+          if (imageCompressMode === 'smart') {
+            if (
+              smartTargetValue == null ||
+              !Number.isFinite(smartTargetValue) ||
+              smartTargetValue <= 0
+            ) {
+              throw new Error('请填写有效的目标体积')
+            }
+            const targetBytes =
+              smartTargetUnit === 'kb'
+                ? Math.max(1, Math.round(smartTargetValue * 1024))
+                : Math.max(1, Math.round(smartTargetValue * 1024 * 1024))
+            imageOptions = {
               format: encodeFormat,
               quality,
-            },
-            setProgress,
+              maxOutputBytes: targetBytes,
+              qualityCeiling: 0.98,
+              minQuality: imageMinQualityDec,
+            }
+          } else {
+            imageOptions = { format: encodeFormat, quality, minQuality: imageMinQualityDec }
+          }
+          setStatusText(
+            imageCompressMode === 'smart'
+              ? '在后台 Worker 中智能压缩（二分法逼近目标体积）…'
+              : '在后台 Worker 中压缩图片…',
           )
+          const out = await runImageCompress(jobId, buf, file.type || 'image/jpeg', imageOptions, setProgress)
           const blob = new Blob([out.buffer], { type: out.outputMime })
           const base = file.name.replace(/\.[^.]+$/, '')
           const ext =
@@ -232,6 +290,7 @@ export function HomePage() {
                 ? '.webp'
                 : '.png'
           const keptOriginal = Boolean(out.usedOriginalFallback)
+          const targetUnmet = Boolean(out.targetUnmet)
           const name = keptOriginal ? file.name : `${base}-compressed${ext}`
           setResultBlob(blob)
           setResultName(name)
@@ -241,12 +300,21 @@ export function HomePage() {
             outBytes: blob.size,
             inName: file.name,
             keptOriginal,
+            targetUnmet,
+            imageSmartMode: imageCompressMode === 'smart',
           })
           setProgress(100)
+          setBannerTone(keptOriginal || targetUnmet ? 'warning' : 'success')
           setStatusText(
             keptOriginal
-              ? '完成：当前参数下无法比原文件更小，已保留原图'
-              : '完成',
+              ? imageCompressMode === 'smart'
+                ? '完成：无法压缩到您设定的目标体积，已保留原图'
+                : '完成：当前参数下无法比原文件更小，已保留原图'
+              : targetUnmet
+                ? imageCompressMode === 'smart'
+                  ? '完成：未达目标体积，已输出最低质量下的最小文件，可下载使用'
+                  : '完成：无法压至原图以下，已输出最低质量下的最小文件，可下载使用'
+                : '完成',
           )
 
           const thumb = await makeThumbnailBlob(blob)
@@ -303,6 +371,7 @@ export function HomePage() {
           keptOriginal,
         })
         setProgress(100)
+        setBannerTone(keptOriginal ? 'warning' : 'success')
         setStatusText(
           keptOriginal
             ? '完成：编码结果未小于原文件，已保留原文件'
@@ -344,7 +413,18 @@ export function HomePage() {
         setBusy(false)
       }
     },
-    [crf, ffmpegReady, format, quality, scaleWidth, setPreviewForBlob],
+    [
+      crf,
+      ffmpegReady,
+      format,
+      imageCompressMode,
+      imageMinQualityDec,
+      quality,
+      scaleWidth,
+      setPreviewForBlob,
+      smartTargetUnit,
+      smartTargetValue,
+    ],
   )
 
   const onDrop = useCallback(
@@ -374,6 +454,19 @@ export function HomePage() {
     }),
     [activeTab, busy, pickFile],
   )
+
+  const smartTargetApproxBytes = useMemo(() => {
+    if (
+      smartTargetValue == null ||
+      !Number.isFinite(smartTargetValue) ||
+      smartTargetValue <= 0
+    ) {
+      return null
+    }
+    return smartTargetUnit === 'kb'
+      ? Math.max(1, Math.round(smartTargetValue * 1024))
+      : Math.max(1, Math.round(smartTargetValue * 1024 * 1024))
+  }, [smartTargetUnit, smartTargetValue])
 
   const onStartCompress = useCallback(() => {
     if (!selectedFile || busy) return
@@ -471,6 +564,21 @@ export function HomePage() {
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                  压缩方式
+                </Text>
+                <Segmented<'smart' | 'manual'>
+                  block
+                  value={imageCompressMode}
+                  onChange={(v) => setImageCompressMode(v)}
+                  disabled={busy}
+                  options={[
+                    { label: '智能压缩', value: 'smart' },
+                    { label: '手动调节质量', value: 'manual' },
+                  ]}
+                />
+              </div>
+              <div>
+                <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
                   输出格式
                 </Text>
                 <Select
@@ -494,20 +602,88 @@ export function HomePage() {
                   </Paragraph>
                 )}
               </div>
-              <div>
-                <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
-                  <Text type="secondary">质量</Text>
-                  <Text strong>{(quality * 100).toFixed(0)}%</Text>
-                </Flex>
-                <Slider
-                  min={40}
-                  max={95}
-                  value={Math.round(quality * 100)}
-                  onChange={(v) => setQuality(v / 100)}
-                  disabled={busy}
-                  tooltip={{ formatter: (v) => `${v}%` }}
-                />
-              </div>
+              {imageCompressMode === 'smart' ? (
+                <div>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                    目标最大体积（压缩后需不超过该值）
+                  </Text>
+                  <Space.Compact style={{ width: '100%', maxWidth: 360 }}>
+                    <InputNumber
+                      style={{ width: 'calc(100% - 88px)' }}
+                      min={smartTargetUnit === 'kb' ? 1 : 0.0001}
+                      max={smartTargetUnit === 'kb' ? 512 * 1024 : 500}
+                      step={smartTargetUnit === 'kb' ? 1 : 0.05}
+                      value={smartTargetValue}
+                      onChange={(v) => {
+                        setSmartTargetValue(typeof v === 'number' ? v : null)
+                      }}
+                      disabled={busy}
+                    />
+                    <Select<SmartTargetUnit>
+                      style={{ width: 88 }}
+                      value={smartTargetUnit}
+                      disabled={busy}
+                      options={[
+                        { value: 'kb', label: 'KB' },
+                        { value: 'mb', label: 'MB' },
+                      ]}
+                      onChange={(u) => {
+                        if (u === smartTargetUnit) return
+                        const fileSize = selectedFile?.size ?? 1024 * 1024
+                        const prevBytes =
+                          smartTargetValue != null &&
+                          Number.isFinite(smartTargetValue) &&
+                          smartTargetValue > 0
+                            ? smartTargetUnit === 'mb'
+                              ? smartTargetValue * 1024 * 1024
+                              : smartTargetValue * 1024
+                            : Math.min(fileSize, Math.max(1, Math.floor(fileSize * 0.65)))
+                        if (u === 'kb') {
+                          setSmartTargetValue(Math.max(1, Math.round(prevBytes / 1024)))
+                        } else {
+                          setSmartTargetValue(Math.round((prevBytes / (1024 * 1024)) * 10_000) / 10_000)
+                        }
+                        setSmartTargetUnit(u)
+                      }}
+                    />
+                  </Space.Compact>
+                  <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
+                    将在 Worker 内对质量做二分搜索，在不超过目标的前提下尽量提高画质；质量下限见{' '}
+                    <RouterLink to="/settings">设置</RouterLink>
+                    （当前 {imageMinQualityPct}%）。未达标时输出该下限下的最小编码。
+                    {selectedFile && smartTargetApproxBytes != null ? (
+                      <>
+                        {' '}
+                        当前约等于 {formatBytes(smartTargetApproxBytes)}
+                        {smartTargetApproxBytes >= selectedFile.size ? (
+                          <>（不小于原图 {formatBytes(selectedFile.size)}，一般会直接满足）</>
+                        ) : null}
+                      </>
+                    ) : selectedFile ? (
+                      <> 输入框为空时请填入数字后再压缩。</>
+                    ) : null}
+                  </Paragraph>
+                </div>
+              ) : (
+                <div>
+                  <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
+                    <Text type="secondary">质量上限</Text>
+                    <Text strong>{(quality * 100).toFixed(0)}%</Text>
+                  </Flex>
+                  <Slider
+                    min={imageMinQualityPct}
+                    max={95}
+                    value={Math.round(quality * 100)}
+                    onChange={(v) => setQuality(v / 100)}
+                    disabled={busy}
+                    tooltip={{ formatter: (v) => `${v}%` }}
+                  />
+                  <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
+                    输出体积默认不超过原图大小；编码会在该质量上限内二分尝试，尽量提高清晰度。下限 {imageMinQualityPct}% 可在{' '}
+                    <RouterLink to="/settings">设置</RouterLink> 修改。
+                  </Paragraph>
+                </div>
+              )}
             </Space>
           </Card>
         )}
@@ -569,7 +745,7 @@ export function HomePage() {
         )}
 
         {!busy && statusText && !error && (
-          <Alert style={{ marginTop: 16 }} type="success" showIcon message={statusText} />
+          <Alert style={{ marginTop: 16 }} type={bannerTone} showIcon message={statusText} />
         )}
         {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
 
@@ -581,6 +757,12 @@ export function HomePage() {
               </Text>
               {lastStats.keptOriginal ? (
                 <Text type="secondary">体积未增大（已保留原文件）</Text>
+              ) : lastStats.targetUnmet ? (
+                <Text type="secondary">
+                  {lastStats.imageSmartMode
+                    ? '未达目标体积，已输出最低质量下尽量小的文件'
+                    : '未小于原图体积，已输出最低质量下尽量小的文件'}
+                </Text>
               ) : lastStats.inBytes > 0 && lastStats.outBytes < lastStats.inBytes ? (
                 <Text type="success" strong>
                   约省 {(100 * (1 - lastStats.outBytes / lastStats.inBytes)).toFixed(1)}%

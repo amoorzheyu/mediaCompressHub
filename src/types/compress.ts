@@ -8,6 +8,12 @@ export type ImageCompressOptions = {
   format: ImageEncodeFormat
   quality: number
   maxWidth?: number
+  /** 输出体积需不超过此值（字节）。未设置时 Worker 使用原图大小作为上限（手动模式） */
+  maxOutputBytes?: number
+  /** 有损编码时的质量搜索上限。智能压缩时通常为 0.98；未设置时由 quality 推导 */
+  qualityCeiling?: number
+  /** 有损编码质量下限 0～1（与设置页「图片最低质量」一致），未设置时 Worker 内默认 0.2 */
+  minQuality?: number
 }
 
 export type MainToImageWorker =
@@ -29,8 +35,10 @@ export type ImageWorkerToMain =
       outputMime: string
       width: number
       height: number
-      /** 无法在减小体积的前提下重编码，已退回原始字节 */
+      /** 无法在减小体积的前提下重编码，已退回原始字节（当前图片有损路径一般不再使用） */
       usedOriginalFallback?: boolean
+      /** 最低质量仍大于体积预算，已改为输出该最小编码结果 */
+      targetUnmet?: boolean
     }
   | { type: 'image:error'; jobId: string; message: string }
 
