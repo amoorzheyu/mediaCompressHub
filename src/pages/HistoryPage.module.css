@@ -8,11 +8,60 @@
   padding-bottom: 0.25rem;
 }
 
-.list {
-  margin: 0;
-  padding-left: 1.2rem;
-  line-height: 1.65;
-  color: var(--text-soft, rgba(255, 255, 255, 0.75));
+.listCard {
+  margin-top: 24px;
+  border-color: var(--border, #1e2433) !important;
+  box-shadow: var(--shadow-panel, 0 18px 50px rgba(0, 0, 0, 0.45));
+}
+
+.listCard :global(.ant-card-head) {
+  border-bottom-color: var(--border, #1e2433);
+  min-height: 52px;
+}
+
+.listCard :global(.ant-card-head-title) {
+  padding: 14px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.historyList :global(.ant-list-item) {
+  padding: 18px 20px !important;
+  transition: background 0.18s ease;
+}
+
+.historyList :global(.ant-list-item:hover) {
+  background: var(--bg-hover, #141824);
+}
+
+.historyList :global(.ant-list-item:last-child) {
+  border-block-end: none !important;
+}
+
+.listItem :global(.ant-list-item-meta) {
+  align-items: center;
+}
+
+.listItem :global(.ant-list-item-meta-title) {
+  margin-bottom: 6px !important;
+}
+
+.itemTitle {
+  max-width: min(100%, 520px);
+}
+
+.metaLine {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.metaBlock {
+  margin-top: 4px;
+}
+
+.paginationBar {
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--border, #1e2433);
 }
 
 .thumbFallback {

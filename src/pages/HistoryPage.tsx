@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Avatar, Button, Empty, Flex, List, Spin, Tag, Typography } from 'antd'
+import { Avatar, Button, Card, Empty, Flex, List, Pagination, Space, Spin, Tag, Typography } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { deleteJob, listJobs, type JobRecord } from '../lib/idb/db'
 import { formatBytes } from '../lib/formatBytes'
@@ -12,6 +12,9 @@ const kindLabel: Record<JobRecord['kind'], string> = {
   gif: 'GIF',
   video: '视频',
 }
+
+const PAGE_SIZE_OPTIONS: number[] = [10, 20, 50]
+const DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0]
 
 function JobThumb({ blob, fallback }: { blob: Blob | undefined; fallback: string }) {
   const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob])
@@ -33,6 +36,8 @@ function JobThumb({ blob, fallback }: { blob: Blob | undefined; fallback: string
 export function HistoryPage() {
   const [rows, setRows] = useState<JobRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -53,6 +58,25 @@ export function HistoryPage() {
     await refresh()
   }
 
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return rows.slice(start, start + pageSize)
+  }, [rows, page, pageSize])
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(rows.length / pageSize) || 1)
+    if (page > maxPage) setPage(maxPage)
+  }, [rows.length, pageSize, page])
+
+  const onPaginationChange = (p: number, ps: number) => {
+    if (ps !== pageSize) {
+      setPageSize(ps)
+      setPage(1)
+    } else {
+      setPage(p)
+    }
+  }
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -71,64 +95,97 @@ export function HistoryPage() {
       ) : rows.length === 0 ? (
         <Empty style={{ marginTop: 48 }} description="暂无记录，去「压缩」页面试试吧" />
       ) : (
-        <List
-          style={{ marginTop: 24 }}
-          dataSource={rows}
-          renderItem={(job) => (
-            <List.Item
-              style={{ paddingLeft: 0, paddingRight: 0 }}
-              actions={[
-                <Button
-                  key="delete"
-                  danger
-                  type="link"
-                  icon={<DeleteOutlined />}
-                  onClick={() => void onDelete(job.id)}
-                >
-                  删除记录
-                </Button>,
-              ]}
-            >
-              <List.Item.Meta
-                avatar={<JobThumb blob={job.thumbnailBlob} fallback={kindLabel[job.kind]} />}
-                title={
-                  <Flex align="center" gap={8} wrap>
-                    <Text strong ellipsis={{ tooltip: job.inputName }}>
-                      {job.inputName}
-                    </Text>
-                    <Tag>{kindLabel[job.kind]}</Tag>
-                  </Flex>
-                }
-                description={
-                  <>
-                    <Text type="secondary" style={{ fontSize: 13 }}>
-                      <time dateTime={new Date(job.createdAt).toISOString()}>
-                        {new Date(job.createdAt).toLocaleString()}
-                      </time>
-                    </Text>
-                    {job.status === 'done' ? (
-                      <div style={{ marginTop: 4 }}>
-                        <Text type="secondary" style={{ fontSize: 13 }}>
-                          {formatBytes(job.inputBytes)} → {formatBytes(job.outputBytes)}
-                          {job.outputMime && <> · {job.outputMime}</>}
-                          {job.width != null && job.height != null && (
-                            <> · {job.width}×{job.height}</>
-                          )}
-                        </Text>
-                      </div>
-                    ) : (
-                      <div style={{ marginTop: 4 }}>
-                        <Text type="danger" style={{ fontSize: 13 }}>
-                          失败：{job.errorMessage ?? '未知错误'}
-                        </Text>
-                      </div>
-                    )}
-                  </>
-                }
-              />
-            </List.Item>
-          )}
-        />
+        <Card
+          className={styles.listCard}
+          title="记录列表"
+          extra={
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              共 {rows.length} 条
+            </Text>
+          }
+          styles={{ body: { padding: 0 } }}
+        >
+          <List
+            className={styles.historyList}
+            bordered
+            itemLayout="horizontal"
+            size="large"
+            dataSource={paginatedRows}
+            renderItem={(job) => (
+              <List.Item
+                className={styles.listItem}
+                actions={[
+                  <Button
+                    key="delete"
+                    danger
+                    type="link"
+                    icon={<DeleteOutlined />}
+                    onClick={() => void onDelete(job.id)}
+                  >
+                    删除
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  avatar={<JobThumb blob={job.thumbnailBlob} fallback={kindLabel[job.kind]} />}
+                  title={
+                    <Flex align="center" gap={8} wrap="wrap">
+                      <Text strong ellipsis={{ tooltip: job.inputName }} className={styles.itemTitle}>
+                        {job.inputName}
+                      </Text>
+                      <Space size={6} wrap>
+                        <Tag>{kindLabel[job.kind]}</Tag>
+                        {job.status === 'done' ? (
+                          <Tag color="success">已完成</Tag>
+                        ) : (
+                          <Tag color="error">失败</Tag>
+                        )}
+                      </Space>
+                    </Flex>
+                  }
+                  description={
+                    <>
+                      <Text type="secondary" className={styles.metaLine}>
+                        <time dateTime={new Date(job.createdAt).toISOString()}>
+                          {new Date(job.createdAt).toLocaleString()}
+                        </time>
+                      </Text>
+                      {job.status === 'done' ? (
+                        <div className={styles.metaBlock}>
+                          <Text type="secondary" className={styles.metaLine}>
+                            {formatBytes(job.inputBytes)} → {formatBytes(job.outputBytes)}
+                            {job.outputMime && <> · {job.outputMime}</>}
+                            {job.width != null && job.height != null && (
+                              <> · {job.width}×{job.height}</>
+                            )}
+                          </Text>
+                        </div>
+                      ) : (
+                        <div className={styles.metaBlock}>
+                          <Text type="danger" className={styles.metaLine}>
+                            {job.errorMessage ?? '未知错误'}
+                          </Text>
+                        </div>
+                      )}
+                    </>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+          <Flex justify="center" className={styles.paginationBar}>
+            <Pagination
+              current={page}
+              pageSize={pageSize}
+              total={rows.length}
+              showSizeChanger
+              showTotal={(total, range) => `${range[0]}-${range[1]} / 共 ${total} 条`}
+              pageSizeOptions={PAGE_SIZE_OPTIONS.map(String)}
+              onChange={onPaginationChange}
+              hideOnSinglePage
+            />
+          </Flex>
+        </Card>
       )}
     </div>
   )
