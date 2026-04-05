@@ -55,6 +55,9 @@ import type {
 import { FileComparePreview } from '../components/ImageCompareSlider'
 import styles from './HomePage.module.css'
 
+const isElectronApp =
+  import.meta.env.MODE === 'electron' || import.meta.env.MODE === 'electron-dev'
+
 function classifyFile(file: File): 'image' | 'gif' | 'video' {
   if (file.type === 'image/gif') return 'gif'
   if (file.type.startsWith('video/')) return 'video'
@@ -741,15 +744,16 @@ export function HomePage() {
 
   return (
     <div className={styles.page}>
-      <section className={styles.hero} aria-labelledby="hero-title">
-        
-        <h1 id="hero-title" className={styles.title}>
-          本地智能压缩 | 100% 不上传，隐私零风险
-        </h1>
-        <p className={styles.lead}>
-          图片 / 视频 / GIF 全支持，浏览器本地处理，文件永不云端存储，压缩更快更安全
-        </p>
-      </section>
+      {!isElectronApp && (
+        <section className={styles.hero} aria-labelledby="hero-title">
+          <h1 id="hero-title" className={styles.title}>
+            本地智能压缩 | 100% 不上传，隐私零风险
+          </h1>
+          <p className={styles.lead}>
+            图片 / 视频 / GIF 全支持，浏览器本地处理，文件永不云端存储，压缩更快更安全
+          </p>
+        </section>
+      )}
 
       <section className={styles.panel} aria-label="上传与选项">
         <Tabs activeKey={activeTab} items={tabItems} onChange={(k) => setTab(k as TabId)} size="large" />

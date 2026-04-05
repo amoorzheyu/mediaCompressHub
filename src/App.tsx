@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Spin } from 'antd'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { AntdProvider } from './providers/AntdProvider'
 
@@ -16,10 +16,12 @@ function RouteFallback() {
   )
 }
 
+const Router = import.meta.env.VITE_USE_HASH_ROUTER === 'true' ? HashRouter : BrowserRouter
+
 export default function App() {
   return (
     <AntdProvider>
-      <BrowserRouter>
+      <Router>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<Layout />}>
@@ -30,7 +32,7 @@ export default function App() {
             </Route>
           </Routes>
         </Suspense>
-      </BrowserRouter>
+      </Router>
     </AntdProvider>
   )
 }
