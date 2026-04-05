@@ -105,6 +105,23 @@
   align-items: center;
 }
 
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  max-width: 100%;
+}
+
+.footerSep {
+  color: var(--text-soft);
+  opacity: 0.45;
+  user-select: none;
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+
 .footerLink {
   display: inline-flex;
   align-items: center;
@@ -118,4 +135,46 @@
 
 .footerLink:hover {
   color: var(--accent);
+}
+
+.footerAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.footerAction:hover {
+  color: var(--accent);
+}
+
+.qrModalHint {
+  display: block;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.qrFrame {
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.qrImage {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
 }
