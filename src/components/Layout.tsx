@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AUTHOR_CONTACT_QRCODE_URL, AUTHOR_TIP_QRCODE_URL } from '../lib/authorQrUrls'
+import { isElectronApp } from '../lib/isElectronApp'
 import styles from './Layout.module.css'
 
 const { Text } = Typography
@@ -45,15 +46,31 @@ export function Layout() {
   return (
     <div className={styles.shell}>
       <header className={`${styles.header} ${navCompact ? styles.headerStack : ''}`}>
-        <NavLink to="/" className={styles.brand} end>
-          <span className={styles.brandIcon} aria-hidden>
-            ◈
-          </span>
-          <span className={styles.brandText}>
-            <strong className={styles.brandName}>压缩坞</strong>
-            <span className={styles.brandSub}>本地处理 · 零上传</span>
-          </span>
-        </NavLink>
+        {isElectronApp ? (
+          <div className={`${styles.headerElectronLeft} ${navCompact ? styles.headerStackLeading : ''}`}>
+            <button type="button" className={styles.footerAction} onClick={() => setQrModal('tip')}>
+              <HeartOutlined aria-hidden />
+              打赏支持
+            </button>
+            <span className={styles.footerSep} aria-hidden>
+              ·
+            </span>
+            <button type="button" className={styles.footerAction} onClick={() => setQrModal('contact')}>
+              <WechatOutlined aria-hidden />
+              联系作者
+            </button>
+          </div>
+        ) : (
+          <NavLink to="/" className={styles.brand} end>
+            <span className={styles.brandIcon} aria-hidden>
+              ◈
+            </span>
+            <span className={styles.brandText}>
+              <strong className={styles.brandName}>压缩坞</strong>
+              <span className={styles.brandSub}>本地处理 · 零上传</span>
+            </span>
+          </NavLink>
+        )}
         {navCompact ? (
           <Segmented
             className={styles.navSegmented}
@@ -80,33 +97,35 @@ export function Layout() {
       <main className={styles.main}>
         <Outlet />
       </main>
-      <footer className={styles.footer}>
-        <div className={styles.footerInner}>
-          <a
-            className={styles.footerLink}
-            href="https://github.com/amoorzheyu/mediaCompressHub"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <GithubOutlined aria-hidden />
-            amoorzheyu/mediaCompressHub
-          </a>
-          <span className={styles.footerSep} aria-hidden>
-            ·
-          </span>
-          <button type="button" className={styles.footerAction} onClick={() => setQrModal('tip')}>
-            <HeartOutlined aria-hidden />
-            打赏支持
-          </button>
-          <span className={styles.footerSep} aria-hidden>
-            ·
-          </span>
-          <button type="button" className={styles.footerAction} onClick={() => setQrModal('contact')}>
-            <WechatOutlined aria-hidden />
-            联系作者
-          </button>
-        </div>
-      </footer>
+      {!isElectronApp && (
+        <footer className={styles.footer}>
+          <div className={styles.footerInner}>
+            <a
+              className={styles.footerLink}
+              href="https://github.com/amoorzheyu/mediaCompressHub"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <GithubOutlined aria-hidden />
+              amoorzheyu/mediaCompressHub
+            </a>
+            <span className={styles.footerSep} aria-hidden>
+              ·
+            </span>
+            <button type="button" className={styles.footerAction} onClick={() => setQrModal('tip')}>
+              <HeartOutlined aria-hidden />
+              打赏支持
+            </button>
+            <span className={styles.footerSep} aria-hidden>
+              ·
+            </span>
+            <button type="button" className={styles.footerAction} onClick={() => setQrModal('contact')}>
+              <WechatOutlined aria-hidden />
+              联系作者
+            </button>
+          </div>
+        </footer>
+      )}
       <Modal
         title={qrModal === 'tip' ? '感谢支持' : '联系作者'}
         open={qrModal !== null}

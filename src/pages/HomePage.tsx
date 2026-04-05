@@ -53,10 +53,8 @@ import type {
   ImageFormatPreference,
 } from '../types/compress'
 import { FileComparePreview } from '../components/ImageCompareSlider'
+import { isElectronApp } from '../lib/isElectronApp'
 import styles from './HomePage.module.css'
-
-const isElectronApp =
-  import.meta.env.MODE === 'electron' || import.meta.env.MODE === 'electron-dev'
 
 function classifyFile(file: File): 'image' | 'gif' | 'video' {
   if (file.type === 'image/gif') return 'gif'
