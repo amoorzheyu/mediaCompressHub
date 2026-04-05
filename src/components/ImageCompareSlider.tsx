@@ -20,8 +20,17 @@ export function ImageCompareSlider({
   altProcessed = '压缩后',
 }: ImageCompareSliderProps) {
   const [splitPct, setSplitPct] = useState(50)
+  const [desktopHoverScrub, setDesktopHoverScrub] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const onChange = () => setDesktopHoverScrub(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   const setFromClientX = useCallback((clientX: number) => {
     const el = rootRef.current
@@ -69,20 +78,29 @@ export function ImageCompareSlider({
 
   const onPointerDownDivider = useCallback(
     (e: ReactMouseEvent<HTMLDivElement>) => {
+      if (desktopHoverScrub) return
       e.preventDefault()
       e.stopPropagation()
       draggingRef.current = true
       setFromClientX(e.clientX)
     },
-    [setFromClientX],
+    [desktopHoverScrub, setFromClientX],
   )
 
   const onPointerDownRoot = useCallback(
     (e: ReactMouseEvent<HTMLDivElement>) => {
-      if ((e.target as HTMLElement).closest(`.${styles.divider}`)) return
+      if (!desktopHoverScrub && (e.target as HTMLElement).closest(`.${styles.divider}`)) return
       setFromClientX(e.clientX)
     },
-    [setFromClientX],
+    [desktopHoverScrub, setFromClientX],
+  )
+
+  const onMouseMoveStack = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      if (!desktopHoverScrub) return
+      setFromClientX(e.clientX)
+    },
+    [desktopHoverScrub, setFromClientX],
   )
 
   const onTouchStartRoot = useCallback(
@@ -114,9 +132,14 @@ export function ImageCompareSlider({
           ref={rootRef}
           className={styles.stack}
           onMouseDown={onPointerDownRoot}
+          onMouseMove={onMouseMoveStack}
           onTouchStart={onTouchStartRoot}
           role="group"
-          aria-label="对比预览：竖线左侧为原图，右侧为压缩后；可拖动竖线或点击画面调整分界"
+          aria-label={
+            desktopHoverScrub
+              ? '对比预览：竖线左侧为原图，右侧为压缩后；在画面上移动鼠标可调整分界'
+              : '对比预览：竖线左侧为原图，右侧为压缩后；可拖动竖线或点击画面调整分界'
+          }
         >
           <div className={styles.stage}>
             <img
@@ -142,7 +165,11 @@ export function ImageCompareSlider({
           </div>
         </div>
       </div>
-      <p className={styles.hint}>拖动中间竖线对比；点击画面可快速跳转分割位置</p>
+      <p className={styles.hint}>
+        {desktopHoverScrub
+          ? '在画面上移动鼠标，分割线会跟随；点击可快速跳到对应位置'
+          : '拖动中间竖线对比；点击画面可快速跳转分割位置'}
+      </p>
     </div>
   )
 }

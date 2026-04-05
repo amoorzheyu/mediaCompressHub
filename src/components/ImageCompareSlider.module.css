@@ -105,6 +105,23 @@
   pointer-events: auto;
 }
 
+/* PC：不挡鼠标，由整块预览区跟随光标；圆形手柄见下方 @media 隐藏 */
+@media (hover: hover) and (pointer: fine) {
+  .divider {
+    pointer-events: none;
+    cursor: default;
+  }
+
+  .stack {
+    cursor: ew-resize;
+  }
+
+  .divider::before,
+  .divider::after {
+    display: none;
+  }
+}
+
 .divider::before {
   content: '';
   position: absolute;
