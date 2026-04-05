@@ -42,6 +42,17 @@ export type ImageWorkerToMain =
     }
   | { type: 'image:error'; jobId: string; message: string }
 
+export type GifDitherMode = 'bayer' | 'floyd_steinberg' | 'sierra2' | 'none'
+
+/** GIF 重编码参数（palettegen / paletteuse） */
+export type GifEncodeOptions = {
+  maxFps: number
+  maxColors: number
+  dither: GifDitherMode
+  /** 限制最大宽度，高度按比例；不传或 0 表示不缩放 */
+  maxWidth?: number
+}
+
 export type FfmpegWorkerIn =
   | { type: 'load' }
   | {
@@ -53,6 +64,8 @@ export type FfmpegWorkerIn =
       crf: number
       /** 仅 mode === 'video' 时有效：true 保留并重编码为 AAC；false 去除音轨 */
       keepAudio?: boolean
+      /** 仅 mode === 'gif'：不传时使用与历史版本一致的默认参数 */
+      gifOptions?: GifEncodeOptions
     }
 
 export type FfmpegWorkerToMain =

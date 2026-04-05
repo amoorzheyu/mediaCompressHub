@@ -1,4 +1,4 @@
-import type { FfmpegWorkerIn, FfmpegWorkerToMain } from '../../types/compress'
+import type { FfmpegWorkerIn, FfmpegWorkerToMain, GifEncodeOptions } from '../../types/compress'
 
 let worker: Worker | null = null
 let preloadTask: Promise<void> | null = null
@@ -43,6 +43,8 @@ export function runFfmpegCompress(
   onProgress: (p: number) => void,
   /** 仅视频 MP4：默认 true 保留音轨并重编码为 AAC */
   keepAudio = true,
+  /** 仅 GIF：调色板与帧率等参数 */
+  gifOptions?: GifEncodeOptions,
 ): Promise<{ buffer: ArrayBuffer; outputMime: string; outputFileName: string }> {
   const w = getWorker()
   return new Promise((resolve, reject) => {
@@ -75,6 +77,7 @@ export function runFfmpegCompress(
       mode,
       crf,
       ...(mode === 'video' ? { keepAudio } : {}),
+      ...(mode === 'gif' && gifOptions ? { gifOptions } : {}),
     }
     w.postMessage(payload, [buffer])
   })

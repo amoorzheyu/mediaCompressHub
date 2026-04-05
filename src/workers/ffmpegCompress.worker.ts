@@ -2,6 +2,7 @@
 
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { cachedFfmpegCoreBlobURL } from '../lib/compress/ffmpegCoreCache'
+import { buildGifVideoFilter, DEFAULT_GIF_CUSTOM } from '../lib/gifEncode'
 import { clampCrfForX264Encode } from '../lib/videoCrfRangeSettings'
 import type { FfmpegWorkerIn, FfmpegWorkerToMain } from '../types/compress'
 
@@ -87,7 +88,7 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
 
   if (msg.type !== 'run') return
 
-  const { jobId, buffer, inputFileName, mode, crf, keepAudio = true } = msg
+  const { jobId, buffer, inputFileName, mode, crf, keepAudio = true, gifOptions } = msg
   try {
     await ensureLoaded()
   } catch {
@@ -109,11 +110,12 @@ self.onmessage = async (ev: MessageEvent<FfmpegWorkerIn>) => {
 
     if (mode === 'gif') {
       const out = `out_${jobId}.gif`
+      const vf = buildGifVideoFilter(gifOptions ?? DEFAULT_GIF_CUSTOM)
       await active.exec([
         '-i',
         input,
         '-vf',
-        'fps=12,split[s0][s1];[s0]palettegen=max_colors=128:stats_mode=single[p];[s1][p]paletteuse=dither=bayer',
+        vf,
         '-loop',
         '0',
         '-y',

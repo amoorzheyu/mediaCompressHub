@@ -44,8 +44,15 @@ import { readImageMinQualityDecimal, readImageMinQualityPercent } from '../lib/i
 import { videoCompressPercentToCrf, videoCrfToCompressPercent } from '../lib/compress/videoCrfPercent'
 import { readVideoCrfRange, readVideoTargetCrf, writeVideoTargetCrf } from '../lib/videoCrfRangeSettings'
 import { readVideoKeepAudio, writeVideoKeepAudio } from '../lib/videoAudioSettings'
+import { GIF_SMART_ATTEMPTS } from '../lib/gifEncode'
+import { parseGifLogicalScreen } from '../lib/parseGifHeader'
 import { resolveEncodeFormat } from '../lib/resolveImageFormat'
-import type { ImageCompressOptions, ImageEncodeFormat, ImageFormatPreference } from '../types/compress'
+import type {
+  GifDitherMode,
+  ImageCompressOptions,
+  ImageEncodeFormat,
+  ImageFormatPreference,
+} from '../types/compress'
 import styles from './HomePage.module.css'
 
 function classifyFile(file: File): 'image' | 'gif' | 'video' {
@@ -133,6 +140,8 @@ type LastStats = {
   targetUnmet?: boolean
   /** 与 targetUnmet 配套，仅图片有意义 */
   imageSmartMode?: boolean
+  /** GIF 智能压缩时使用 */
+  gifSmartMode?: boolean
 }
 
 type TabPaneState = {
@@ -167,6 +176,15 @@ export function HomePage() {
 
   const [format, setFormat] = useState<ImageFormatPreference>('original')
   const [imageCompressMode, setImageCompressMode] = useState<'smart' | 'manual'>('smart')
+  const [gifCompressMode, setGifCompressMode] = useState<'smart' | 'custom'>('smart')
+  const [gifSmartTargetValue, setGifSmartTargetValue] = useState<number | null>(512)
+  const [gifSmartTargetUnit, setGifSmartTargetUnit] = useState<SmartTargetUnit>('kb')
+  const [gifCustomMaxFps, setGifCustomMaxFps] = useState(12)
+  const [gifCustomMaxColors, setGifCustomMaxColors] = useState(128)
+  const [gifCustomDither, setGifCustomDither] = useState<GifDitherMode>('bayer')
+  /** null 表示不限制宽度 */
+  const [gifCustomMaxWidth, setGifCustomMaxWidth] = useState<number | null>(null)
+  const [gifLogicalSize, setGifLogicalSize] = useState<{ width: number; height: number } | null>(null)
   /** null 表示输入框被清空，便于重新输入；不再用默认值强行回填 */
   const [smartTargetValue, setSmartTargetValue] = useState<number | null>(512)
   const [smartTargetUnit, setSmartTargetUnit] = useState<SmartTargetUnit>('kb')
@@ -301,11 +319,22 @@ export function HomePage() {
         setSmartTargetValue(d.value)
         setSmartTargetUnit(d.unit)
       }
+      if (detected === 'gif') {
+        const d = defaultSmartTarget(file.size)
+        setGifSmartTargetValue(d.value)
+        setGifSmartTargetUnit(d.unit)
+        void file.slice(0, 32).arrayBuffer().then((ab) => {
+          setGifLogicalSize(parseGifLogicalScreen(ab))
+        })
+      } else {
+        setGifLogicalSize(null)
+      }
     },
     [setTab],
   )
 
   const clearSelection = useCallback(() => {
+    setGifLogicalSize(null)
     setPanes((p) => {
       const o = p[activeTab]
       if (o.previewUrl) URL.revokeObjectURL(o.previewUrl)
@@ -448,22 +477,94 @@ export function HomePage() {
           setFfmpegReady(true)
         }
 
-        setCompressStatusText(
-          kind === 'gif'
-            ? '在 Worker 中处理 GIF…'
-            : videoKeepAudio
+        let out: { buffer: ArrayBuffer; outputMime: string; outputFileName: string }
+        let gifTargetUnmet = false
+
+        if (kind === 'gif') {
+          if (gifCompressMode === 'smart') {
+            if (
+              gifSmartTargetValue == null ||
+              !Number.isFinite(gifSmartTargetValue) ||
+              gifSmartTargetValue <= 0
+            ) {
+              throw new Error('请填写有效的目标体积')
+            }
+            const targetBytes =
+              gifSmartTargetUnit === 'kb'
+                ? Math.max(1, Math.round(gifSmartTargetValue * 1024))
+                : Math.max(1, Math.round(gifSmartTargetValue * 1024 * 1024))
+            let best: typeof out | null = null
+            let bestSize = Infinity
+            let chosen: typeof out | null = null
+            const n = GIF_SMART_ATTEMPTS.length
+            for (let i = 0; i < n; i++) {
+              const copy = buf.slice(0)
+              const span = 88 / n
+              setCompressStatusText(`GIF 智能压缩：尝试参数组 ${i + 1} / ${n}…`)
+              const attemptOut = await runFfmpegCompress(
+                jobId,
+                copy,
+                file.name,
+                'gif',
+                readVideoTargetCrf(),
+                (p) => setProgress(Math.min(99, Math.floor(i * span + (p / 100) * span))),
+                true,
+                GIF_SMART_ATTEMPTS[i],
+              )
+              if (attemptOut.buffer.byteLength < bestSize) {
+                bestSize = attemptOut.buffer.byteLength
+                best = attemptOut
+              }
+              if (attemptOut.buffer.byteLength <= targetBytes) {
+                chosen = attemptOut
+                break
+              }
+            }
+            if (!best) {
+              throw new Error('GIF 编码失败')
+            }
+            if (chosen === null) {
+              chosen = best
+              gifTargetUnmet = best.buffer.byteLength > targetBytes
+            }
+            out = chosen
+          } else {
+            setCompressStatusText('在 Worker 中按自定义参数压缩 GIF…')
+            out = await runFfmpegCompress(
+              jobId,
+              buf,
+              file.name,
+              'gif',
+              readVideoTargetCrf(),
+              setProgress,
+              true,
+              {
+                maxFps: gifCustomMaxFps,
+                maxColors: gifCustomMaxColors,
+                dither: gifCustomDither,
+                maxWidth:
+                  gifCustomMaxWidth != null && gifCustomMaxWidth > 0
+                    ? Math.round(gifCustomMaxWidth)
+                    : undefined,
+              },
+            )
+          }
+        } else {
+          setCompressStatusText(
+            videoKeepAudio
               ? '在 Worker 中压缩视频（保留音轨）…'
               : '在 Worker 中压缩视频（已去除音轨以减小体积）…',
-        )
-        const out = await runFfmpegCompress(
-          jobId,
-          buf,
-          file.name,
-          kind === 'gif' ? 'gif' : 'video',
-          readVideoTargetCrf(),
-          setProgress,
-          videoKeepAudio,
-        )
+          )
+          out = await runFfmpegCompress(
+            jobId,
+            buf,
+            file.name,
+            'video',
+            readVideoTargetCrf(),
+            setProgress,
+            videoKeepAudio,
+          )
+        }
         let blob = new Blob([out.buffer], { type: out.outputMime })
         let outputFileName = out.outputFileName
         let keptOriginal = false
@@ -475,6 +576,10 @@ export function HomePage() {
         }
         const url = URL.createObjectURL(blob)
         const paneStillThisFile = panesRef.current[kind].selectedFile === file
+        const gifSmartIdle =
+          kind === 'gif' && gifCompressMode === 'smart' && gifTargetUnmet && !keptOriginal
+            ? '完成：已尝试多档参数，当前结果仍大于您设定的目标体积；可下载使用，或调高目标、改用自定义压缩'
+            : ''
         if (paneStillThisFile) {
           mergePane(kind, {
             resultBlob: blob,
@@ -485,11 +590,16 @@ export function HomePage() {
               outBytes: blob.size,
               inName: file.name,
               keptOriginal,
+              ...(kind === 'gif' && gifCompressMode === 'smart'
+                ? { gifSmartMode: true, targetUnmet: gifTargetUnmet }
+                : {}),
             },
-            idleStatusText: keptOriginal ? '完成：编码结果未小于原文件，已保留原文件' : '',
+            idleStatusText: keptOriginal
+              ? '完成：编码结果未小于原文件，已保留原文件'
+              : gifSmartIdle,
           })
           setProgress(100)
-          if (!keptOriginal) {
+          if (!keptOriginal && !(kind === 'gif' && gifCompressMode === 'smart' && gifTargetUnmet)) {
             toast.success('压缩完成')
           }
         } else {
@@ -550,6 +660,13 @@ export function HomePage() {
       smartTargetUnit,
       smartTargetValue,
       toast,
+      gifCompressMode,
+      gifSmartTargetUnit,
+      gifSmartTargetValue,
+      gifCustomMaxFps,
+      gifCustomMaxColors,
+      gifCustomDither,
+      gifCustomMaxWidth,
     ],
   )
 
@@ -592,6 +709,19 @@ export function HomePage() {
       ? Math.max(1, Math.round(smartTargetValue * 1024))
       : Math.max(1, Math.round(smartTargetValue * 1024 * 1024))
   }, [smartTargetUnit, smartTargetValue])
+
+  const gifSmartTargetApproxBytes = useMemo(() => {
+    if (
+      gifSmartTargetValue == null ||
+      !Number.isFinite(gifSmartTargetValue) ||
+      gifSmartTargetValue <= 0
+    ) {
+      return null
+    }
+    return gifSmartTargetUnit === 'kb'
+      ? Math.max(1, Math.round(gifSmartTargetValue * 1024))
+      : Math.max(1, Math.round(gifSmartTargetValue * 1024 * 1024))
+  }, [gifSmartTargetUnit, gifSmartTargetValue])
 
   const onStartCompress = useCallback(() => {
     if (!selectedFile || busy) return
@@ -908,9 +1038,142 @@ export function HomePage() {
                   </Paragraph>
                 </div>
               ) : (
-                <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                  GIF 使用固定帧率与调色板压缩，不经过视频 CRF
-                </Paragraph>
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                      压缩方式
+                    </Text>
+                    <Segmented<'smart' | 'custom'>
+                      block
+                      value={gifCompressMode}
+                      onChange={(v) => setGifCompressMode(v)}
+                      options={[
+                        { label: '智能压缩', value: 'smart' },
+                        { label: '自定义压缩', value: 'custom' },
+                      ]}
+                    />
+                  </div>
+                  {gifLogicalSize ? (
+                    <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 13 }}>
+                      源图逻辑尺寸约 {gifLogicalSize.width}×{gifLogicalSize.height}px（自文件头读取）
+                    </Paragraph>
+                  ) : null}
+                  {gifCompressMode === 'smart' ? (
+                    <div>
+                      <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                        目标最大体积
+                      </Text>
+                      <Space.Compact style={{ width: '100%', maxWidth: 360 }}>
+                        <InputNumber
+                          style={{ width: 'calc(100% - 88px)' }}
+                          min={gifSmartTargetUnit === 'kb' ? 1 : 0.0001}
+                          max={gifSmartTargetUnit === 'kb' ? 512 * 1024 : 500}
+                          step={gifSmartTargetUnit === 'kb' ? 1 : 0.05}
+                          value={gifSmartTargetValue}
+                          onChange={(v) => {
+                            setGifSmartTargetValue(typeof v === 'number' ? v : null)
+                          }}
+                        />
+                        <Select<SmartTargetUnit>
+                          style={{ width: 88 }}
+                          value={gifSmartTargetUnit}
+                          options={[
+                            { value: 'kb', label: 'KB' },
+                            { value: 'mb', label: 'MB' },
+                          ]}
+                          onChange={(u) => {
+                            if (u === gifSmartTargetUnit) return
+                            const fileSize = selectedFile?.size ?? 1024 * 1024
+                            const prevBytes =
+                              gifSmartTargetValue != null &&
+                              Number.isFinite(gifSmartTargetValue) &&
+                              gifSmartTargetValue > 0
+                                ? gifSmartTargetUnit === 'mb'
+                                  ? gifSmartTargetValue * 1024 * 1024
+                                  : gifSmartTargetValue * 1024
+                                : Math.min(fileSize, Math.max(1, Math.floor(fileSize * 0.65)))
+                            if (u === 'kb') {
+                              setGifSmartTargetValue(Math.max(1, Math.round(prevBytes / 1024)))
+                            } else {
+                              setGifSmartTargetValue(
+                                Math.round((prevBytes / (1024 * 1024)) * 10_000) / 10_000,
+                              )
+                            }
+                            setGifSmartTargetUnit(u)
+                          }}
+                        />
+                      </Space.Compact>
+                      <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
+                        将按多组参数依次重编码，优先满足体积目标；GIF 为调色板动画，无法像静态图一样精确二分逼近。
+                        {selectedFile && gifSmartTargetApproxBytes != null ? (
+                          <>
+                            {' '}
+                            当前约等于 {formatBytes(gifSmartTargetApproxBytes)}
+                            {gifSmartTargetApproxBytes >= selectedFile.size ? (
+                              <>（不小于原文件 {formatBytes(selectedFile.size)}，一般较易满足）</>
+                            ) : null}
+                          </>
+                        ) : selectedFile ? (
+                          <> 请填写有效数字后再压缩</>
+                        ) : null}
+                      </Paragraph>
+                    </div>
+                  ) : (
+                    <div>
+                      <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
+                        <Text type="secondary">输出帧率上限</Text>
+                        <Text strong>{gifCustomMaxFps} fps</Text>
+                      </Flex>
+                      <Slider
+                        min={1}
+                        max={24}
+                        value={gifCustomMaxFps}
+                        onChange={(v) => setGifCustomMaxFps(Array.isArray(v) ? gifCustomMaxFps : v)}
+                      />
+                      <Flex justify="space-between" align="center" style={{ marginBottom: 8, marginTop: 16 }}>
+                        <Text type="secondary">调色板颜色数</Text>
+                        <Text strong>{gifCustomMaxColors}</Text>
+                      </Flex>
+                      <Slider
+                        min={32}
+                        max={256}
+                        value={gifCustomMaxColors}
+                        onChange={(v) => setGifCustomMaxColors(Array.isArray(v) ? gifCustomMaxColors : v)}
+                      />
+                      <Text type="secondary" style={{ display: 'block', marginBottom: 8, marginTop: 16 }}>
+                        抖动算法
+                      </Text>
+                      <Select<GifDitherMode>
+                        style={{ width: '100%' }}
+                        value={gifCustomDither}
+                        onChange={setGifCustomDither}
+                        options={[
+                          { value: 'bayer', label: 'Bayer（有序抖动，颗粒感）' },
+                          { value: 'floyd_steinberg', label: 'Floyd–Steinberg（扩散抖动）' },
+                          { value: 'sierra2', label: 'Sierra-2' },
+                          { value: 'none', label: '无抖动' },
+                        ]}
+                      />
+                      <Text type="secondary" style={{ display: 'block', marginBottom: 8, marginTop: 16 }}>
+                        最大宽度（像素）
+                      </Text>
+                      <InputNumber
+                        style={{ width: '100%', maxWidth: 360 }}
+                        min={32}
+                        max={4096}
+                        placeholder="留空表示不缩放"
+                        changeOnWheel={false}
+                        value={gifCustomMaxWidth ?? undefined}
+                        onChange={(v) => {
+                          setGifCustomMaxWidth(v == null || !Number.isFinite(v) ? null : v)
+                        }}
+                      />
+                      <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
+                        高度按比例缩放；不填则保持原始像素尺寸。与视频 CRF 无关。
+                      </Paragraph>
+                    </div>
+                  )}
+                </Space>
               )}
             </Space>
           </Card>
