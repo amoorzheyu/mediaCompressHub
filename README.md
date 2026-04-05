@@ -3,7 +3,8 @@
 纯前端的本地媒体压缩工具：图片、GIF、视频在浏览器内处理，**文件不会上传到任何服务器**。可作为渐进式 Web 应用（PWA）安装使用。
 
 ## 界面展示
-<img width="1407" height="1379" alt="image" src="https://github.com/user-attachments/assets/e737892d-1eb2-44fe-83c3-21682e643596" />
+<img width="2229" height="1626" alt="image" src="https://github.com/user-attachments/assets/f7eb58ea-2ec2-42ac-9947-39e326e7bc6e" />
+
 <img width="2229" height="1626" alt="image" src="https://github.com/user-attachments/assets/1b2cb875-b7cd-4b64-a034-26edaa02b29c" />
 <img width="2206" height="1628" alt="image" src="https://github.com/user-attachments/assets/98bb92ac-cda4-4329-b23f-f3fc21de919d" />
 
