@@ -742,12 +742,7 @@ export function HomePage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero} aria-labelledby="hero-title">
-        <div className={styles.heroBadge}>
-          <span className={styles.shield} aria-hidden>
-            ⬡
-          </span>
-          纯本地 · 浏览器内处理
-        </div>
+        
         <h1 id="hero-title" className={styles.title}>
           本地智能压缩 | 100% 不上传，隐私零风险
         </h1>
