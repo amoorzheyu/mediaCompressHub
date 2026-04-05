@@ -40,6 +40,20 @@ body {
   min-height: 100dvh;
 }
 
+/* 桌面端（Electron）：隐藏窗口级滚动条，仍可滚轮 / 触控板滚动 */
+html[data-electron-app='true'],
+html[data-electron-app='true'] body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html[data-electron-app='true']::-webkit-scrollbar,
+html[data-electron-app='true'] body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 h1 strong,
 h2 strong,
 legend {
