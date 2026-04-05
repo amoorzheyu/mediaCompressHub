@@ -99,38 +99,47 @@ export function ImageCompareSlider({
 
   return (
     <div className={styles.root}>
-      <div
-        ref={rootRef}
-        className={styles.stack}
-        onMouseDown={onPointerDownRoot}
-        onTouchStart={onTouchStartRoot}
-        role="presentation"
-      >
-        <div className={styles.stage}>
-          <img
-            src={processedSrc}
-            alt={altProcessed}
-            className={styles.imgProcessed}
-            draggable={false}
-          />
-          <div className={styles.clip} style={{ width: `${splitPct}%` }}>
+      <div className={styles.compareWrap}>
+        <div className={styles.legend}>
+          <span className={styles.legendSide}>
+            <span className={styles.legendMark} data-side="original" />
+            原图
+          </span>
+          <span className={styles.legendSide}>
+            压缩后
+            <span className={styles.legendMark} data-side="processed" />
+          </span>
+        </div>
+        <div
+          ref={rootRef}
+          className={styles.stack}
+          onMouseDown={onPointerDownRoot}
+          onTouchStart={onTouchStartRoot}
+          role="group"
+          aria-label="对比预览：竖线左侧为原图，右侧为压缩后；可拖动竖线或点击画面调整分界"
+        >
+          <div className={styles.stage}>
             <img
-              src={originalSrc}
-              alt={altOriginal}
-              className={styles.imgOriginal}
+              src={processedSrc}
+              alt={altProcessed}
+              className={styles.imgProcessed}
               draggable={false}
             />
+            <div className={styles.clip} style={{ width: `${splitPct}%` }}>
+              <img
+                src={originalSrc}
+                alt={altOriginal}
+                className={styles.imgOriginal}
+                draggable={false}
+              />
+            </div>
+            <div
+              className={styles.divider}
+              style={{ left: `${splitPct}%` }}
+              onMouseDown={onPointerDownDivider}
+              aria-hidden
+            />
           </div>
-          <div className={styles.labels}>
-            <span className={`${styles.label} ${styles.labelLeft}`}>原图</span>
-            <span className={`${styles.label} ${styles.labelRight}`}>压缩后</span>
-          </div>
-          <div
-            className={styles.divider}
-            style={{ left: `${splitPct}%` }}
-            onMouseDown={onPointerDownDivider}
-            aria-hidden
-          />
         </div>
       </div>
       <p className={styles.hint}>拖动中间竖线对比；点击画面可快速跳转分割位置</p>
