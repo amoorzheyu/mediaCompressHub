@@ -19,6 +19,32 @@
   z-index: 10;
 }
 
+/* 窄屏：品牌一行 + 全宽分段导航，避免横向 Menu 挤压、溢出 */
+.headerStack {
+  flex-wrap: wrap;
+  align-items: stretch;
+  row-gap: 0.75rem;
+}
+
+.headerStack .brand {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.navSegmented {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.navSegmented:global(.ant-segmented) {
+  background: color-mix(in srgb, var(--bg-panel) 88%, var(--border));
+}
+
+.navSegmented :global(.ant-segmented-item-selected) {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -69,14 +95,27 @@
   line-height: 1.2;
 }
 
+@media (max-width: 380px) {
+  .brandSub {
+    display: none;
+  }
+}
+
 .topMenu {
-  flex: 1;
+  flex: 1 1 auto;
   justify-content: flex-end;
   min-width: 0;
-  max-width: 520px;
+  max-width: min(520px, 100%);
   border-bottom: none !important;
   background: transparent !important;
   line-height: 1.2;
+}
+
+/* 介于「很窄」与「桌面」之间：菜单与品牌易抢宽度时，允许 Menu 自身折叠多余项 */
+@media (max-width: 900px) {
+  .topMenu {
+    max-width: 100%;
+  }
 }
 
 .topMenu :global(.ant-menu-item) {

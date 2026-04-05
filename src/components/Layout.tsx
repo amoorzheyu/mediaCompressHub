@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Menu, Modal, Typography } from 'antd'
+import { useEffect, useState } from 'react'
+import { Menu, Modal, Segmented, Typography } from 'antd'
 import {
   CompressOutlined,
   GithubOutlined,
@@ -14,15 +14,37 @@ import styles from './Layout.module.css'
 
 const { Text } = Typography
 
+const NAV_COMPACT_MQ = '(max-width: 767.98px)'
+
+function useNavCompact() {
+  const [compact, setCompact] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(NAV_COMPACT_MQ).matches : false,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(NAV_COMPACT_MQ)
+    const onChange = () => setCompact(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return compact
+}
+
+const navSegmentedOptions = [
+  { value: '/' as const, label: '压缩', icon: <CompressOutlined /> },
+  { value: '/history' as const, label: '历史', icon: <HistoryOutlined /> },
+  { value: '/settings' as const, label: '设置', icon: <SettingOutlined /> },
+]
+
 export function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const path = location.pathname === '/' ? '/' : location.pathname
   const [qrModal, setQrModal] = useState<null | 'tip' | 'contact'>(null)
+  const navCompact = useNavCompact()
 
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
+      <header className={`${styles.header} ${navCompact ? styles.headerStack : ''}`}>
         <NavLink to="/" className={styles.brand} end>
           <span className={styles.brandIcon} aria-hidden>
             ◈
@@ -32,18 +54,28 @@ export function Layout() {
             <span className={styles.brandSub}>本地处理 · 零上传</span>
           </span>
         </NavLink>
-        <Menu
-          mode="horizontal"
-          disabledOverflow
-          selectedKeys={[path]}
-          items={[
-            { key: '/', label: '压缩', icon: <CompressOutlined /> },
-            { key: '/history', label: '历史', icon: <HistoryOutlined /> },
-            { key: '/settings', label: '设置', icon: <SettingOutlined /> },
-          ]}
-          onClick={({ key }) => navigate(key)}
-          className={styles.topMenu}
-        />
+        {navCompact ? (
+          <Segmented
+            className={styles.navSegmented}
+            block
+            size="large"
+            value={path}
+            options={navSegmentedOptions}
+            onChange={(key) => navigate(String(key))}
+          />
+        ) : (
+          <Menu
+            mode="horizontal"
+            selectedKeys={[path]}
+            items={[
+              { key: '/', label: '压缩', icon: <CompressOutlined /> },
+              { key: '/history', label: '历史', icon: <HistoryOutlined /> },
+              { key: '/settings', label: '设置', icon: <SettingOutlined /> },
+            ]}
+            onClick={({ key }) => navigate(key)}
+            className={styles.topMenu}
+          />
+        )}
       </header>
       <main className={styles.main}>
         <Outlet />
