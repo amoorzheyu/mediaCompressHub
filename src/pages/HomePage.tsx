@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Flex,
-  Image,
   InputNumber,
   Modal,
   Progress,
@@ -53,6 +52,7 @@ import type {
   ImageEncodeFormat,
   ImageFormatPreference,
 } from '../types/compress'
+import { FileComparePreview } from '../components/ImageCompareSlider'
 import styles from './HomePage.module.css'
 
 function classifyFile(file: File): 'image' | 'gif' | 'video' {
@@ -1193,7 +1193,7 @@ export function HomePage() {
           width={Math.min(900, typeof window !== 'undefined' ? window.innerWidth - 48 : 900)}
           destroyOnHidden
         >
-          {previewUrl && resultBlob && (
+          {previewUrl && resultBlob && selectedFile && (
             <div style={{ textAlign: 'center' }}>
               {resultBlob.type.startsWith('video/') ? (
                 <video
@@ -1203,7 +1203,12 @@ export function HomePage() {
                   style={{ width: '100%', maxHeight: '70vh', verticalAlign: 'middle' }}
                 />
               ) : (
-                <Image src={previewUrl} alt={resultName || '预览'} style={{ maxWidth: '100%', maxHeight: '70vh' }} />
+                <FileComparePreview
+                  key={previewUrl}
+                  file={selectedFile}
+                  processedSrc={previewUrl}
+                  altProcessed={resultName || '压缩后'}
+                />
               )}
             </div>
           )}

@@ -1,0 +1,126 @@
+.root {
+  position: relative;
+  user-select: none;
+  touch-action: none;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.stack {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.imgProcessed {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  width: auto;
+  height: auto;
+  vertical-align: top;
+}
+
+.clip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 与底层压缩图同高、按宽高比伸宽，由左侧 clip 裁切；不依赖 JS 测量，避免 Modal 内首帧宽高为 0 导致原图不渲染 */
+.imgOriginal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  pointer-events: none;
+}
+
+.divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: color-mix(in srgb, var(--accent, #34d399) 85%, #fff);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-strong, #334155) 60%, transparent);
+  cursor: ew-resize;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-elevated, #1e293b);
+  border: 2px solid color-mix(in srgb, var(--accent, #34d399) 80%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, #000 35%, transparent);
+}
+
+.divider::after {
+  content: '‖';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent, #34d399);
+  line-height: 1;
+  letter-spacing: -0.12em;
+}
+
+.labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.label {
+  position: absolute;
+  top: 10px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-root, #0f172a) 82%, transparent);
+  border: 1px solid var(--border, #334155);
+  color: var(--text-soft, #e2e8f0);
+}
+
+.labelLeft {
+  left: 10px;
+}
+
+.labelRight {
+  right: 10px;
+}
+
+.hint {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted, #94a3b8);
+}
