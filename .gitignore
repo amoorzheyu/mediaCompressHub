@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 release
+media-compress-hub-v1.0.0-web.zip
 *.local
 
 # Editor directories and files
