@@ -777,6 +777,20 @@ export function HomePage() {
     [],
   )
 
+  const handleTabsKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      e.preventDefault()
+
+      const currentIndex = TABS.findIndex((t) => t.id === activeTab)
+      const nextIndex = e.shiftKey
+        ? (currentIndex - 1 + TABS.length) % TABS.length
+        : (currentIndex + 1) % TABS.length
+      setTab(TABS[nextIndex].id)
+    },
+    [activeTab, setTab],
+  )
+
   return (
     <div className={styles.page}>
       {!isElectronApp && (
@@ -791,7 +805,9 @@ export function HomePage() {
       )}
 
       <section className={styles.panel} aria-label="上传与选项">
-        <Tabs activeKey={activeTab} items={tabItems} onChange={(k) => setTab(k as TabId)} size="large" />
+        <div onKeyDown={handleTabsKeyDown}>
+          <Tabs activeKey={activeTab} items={tabItems} onChange={(k) => setTab(k as TabId)} size="large" />
+        </div>
 
         <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <Upload.Dragger key={activeTab} {...uploadProps}>

@@ -64,6 +64,20 @@
   box-shadow: var(--shadow-panel);
 }
 
+.panel :global(.ant-tabs-top > .ant-tabs-nav::before) {
+  border-bottom-color: transparent;
+}
+
+.panel :global(.ant-tabs-large > .ant-tabs-nav .ant-tabs-tab) {
+  padding: 0 0 8px !important;
+}
+
+.panel :global(.ant-tabs-tab-focus:has(.ant-tabs-tab-btn:focus-visible)),
+.panel :global(.ant-tabs-tab-btn:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .panel :global(.ant-upload.ant-upload-drag) {
   background: var(--bg-root);
   border-color: var(--border-strong) !important;
