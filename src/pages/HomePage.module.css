@@ -1,11 +1,12 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 0.875rem;
+  margin-top: -0.75rem;
 }
 
 .hero {
-  padding: 0.25rem 0 0.5rem;
+  padding: 0.125rem 0 0.25rem;
 }
 
 .heroBadge {
@@ -36,7 +37,7 @@
 }
 
 .title {
-  margin: 0.85rem 0 0.5rem;
+  margin: 0.425rem 0 0.5rem;
   font-size: clamp(1.55rem, 4vw, 2.05rem);
   font-weight: 650;
   letter-spacing: -0.02em;

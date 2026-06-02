@@ -137,7 +137,7 @@ export function SettingsPage() {
         设置与隐私
       </Title>
 
-      <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 640 }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%', maxWidth: 640 }}>
         <Card title="图片压缩 · 最低质量" size="small">
           <Paragraph type="secondary" style={{ marginBottom: 16 }}>
             智能压缩的二分下界、手动调节滑块的最小值，以及「未达目标体积」时输出的有损编码，均不会低于此处设定。默认{' '}
@@ -226,7 +226,7 @@ export function SettingsPage() {
             {DEFAULT_IMAGE_MAX_UPLOAD_BYTES / MB} MB、GIF {DEFAULT_GIF_MAX_UPLOAD_BYTES / MB} MB、视频{' '}
             {DEFAULT_VIDEO_MAX_UPLOAD_BYTES / GB} GB。
           </Paragraph>
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             <div>
               <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
                 静态图片（JPG / PNG / WebP / AVIF 等）

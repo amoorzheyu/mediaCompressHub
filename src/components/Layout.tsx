@@ -129,7 +129,7 @@ export function Layout() {
         onCancel={() => setQrModal(null)}
         footer={null}
         centered
-        destroyOnClose
+        destroyOnHidden
         width={360}
       >
         <Text type="secondary" className={styles.qrModalHint}>

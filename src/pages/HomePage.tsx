@@ -940,7 +940,7 @@ export function HomePage() {
 
         {activeTab === 'image' && (
           <Card title="图片压缩 · 输出选项" size="small" style={{ marginTop: 16 }}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
                   压缩方式
@@ -1088,7 +1088,7 @@ export function HomePage() {
             size="small"
             style={{ marginTop: 16 }}
           >
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               {activeTab === 'video' ? (
                 <div>
                   <Flex justify="space-between" align="center" style={{ marginBottom: 8 }} wrap gap={8}>
@@ -1126,7 +1126,7 @@ export function HomePage() {
                   </Paragraph>
                 </div>
               ) : (
-                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                   <div>
                     <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
                       压缩方式
