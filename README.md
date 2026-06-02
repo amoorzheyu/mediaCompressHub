@@ -4,6 +4,7 @@
 
 ## 界面展示
 <img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/d76db337-baba-47d2-a114-adde5fb2094d" />
+<img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/b5bfe402-3909-4d92-b9ec-030ae61a516b" />
 <img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/41a15f98-63d1-45c2-ab43-22138c31c2e0" />
 <img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/e3c85dec-fa26-4880-920b-bbc70d09a428" />
 
