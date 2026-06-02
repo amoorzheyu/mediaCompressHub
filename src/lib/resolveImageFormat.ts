@@ -15,7 +15,7 @@ function mimeFromFileName(name: string): string {
  * 「保持原格式」时：JPEG/PNG/WebP 一一对应；BMP 用 PNG；AVIF/未知 用 WebP（浏览器侧易编码）。
  */
 export function resolveEncodeFormat(preference: ImageFormatPreference, file: File): ImageEncodeFormat {
-  if (preference !== 'original') return preference
+  if (preference !== 'original' && preference !== 'auto') return preference
 
   const raw = (file.type || mimeFromFileName(file.name)).toLowerCase()
   const mime = raw.split(';')[0].trim()

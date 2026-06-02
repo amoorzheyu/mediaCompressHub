@@ -189,7 +189,7 @@ function initialCompressStates(): Record<TabId, CompressState> {
 export function HomePage() {
   const { message: toast } = App.useApp()
 
-  const [format, setFormat] = useState<ImageFormatPreference>('original')
+  const [format, setFormat] = useState<ImageFormatPreference>('auto')
   const [imageCompressMode, setImageCompressMode] = useState<'smart' | 'manual'>('smart')
   const [gifCompressMode, setGifCompressMode] = useState<'smart' | 'custom'>('smart')
   const [gifSmartTargetValue, setGifSmartTargetValue] = useState<number | null>(512)
@@ -414,7 +414,8 @@ export function HomePage() {
           if (!file.type.startsWith('image/')) {
             throw new Error('不支持的图片类型，请使用常见位图格式')
           }
-          const encodeFormat = resolveEncodeFormat(format, file)
+          const encodeFormat =
+            imageCompressMode === 'smart' && format === 'auto' ? 'auto' : resolveEncodeFormat(format, file)
           let imageOptions: ImageCompressOptions
           if (imageCompressMode === 'smart') {
             if (
@@ -919,7 +920,10 @@ export function HomePage() {
                 <Segmented<'smart' | 'manual'>
                   block
                   value={imageCompressMode}
-                  onChange={(v) => setImageCompressMode(v)}
+                  onChange={(v) => {
+                    setImageCompressMode(v)
+                    if (v === 'smart') setFormat('auto')
+                  }}
                   options={[
                     { label: '智能压缩', value: 'smart' },
                     { label: '手动调节压缩质量', value: 'manual' },
@@ -932,23 +936,40 @@ export function HomePage() {
                 </Text>
                 <Select
                   style={{ width: '100%' }}
-                  value={format}
+                  value={imageCompressMode === 'smart' ? format : format === 'auto' ? 'original' : format}
                   onChange={(v) => setFormat(v as ImageFormatPreference)}
-                  options={[
-                    { value: 'original', label: '默认（保持原图格式）' },
-                    { value: 'webp', label: 'WebP（.webp）' },
-                    { value: 'jpeg', label: 'JPG / JPEG（.jpg）' },
-                    { value: 'png', label: 'PNG（.png）' },
-                  ]}
+                  options={
+                    imageCompressMode === 'smart'
+                      ? [
+                          { value: 'auto', label: '自动（智能选择格式）' },
+                          { value: 'original', label: '默认（保持原图格式）' },
+                          { value: 'webp', label: 'WebP（.webp）' },
+                          { value: 'jpeg', label: 'JPG / JPEG（.jpg）' },
+                          { value: 'png', label: 'PNG（.png）' },
+                        ]
+                      : [
+                          { value: 'original', label: '默认（保持原图格式）' },
+                          { value: 'webp', label: 'WebP（.webp）' },
+                          { value: 'jpeg', label: 'JPG / JPEG（.jpg）' },
+                          { value: 'png', label: 'PNG（.png）' },
+                        ]
+                  }
                 />
-                {selectedFile && format === 'original' && classifyFile(selectedFile) === 'image' && (
+                {selectedFile && imageCompressMode === 'smart' && format === 'auto' && (
+                  <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
+                    将根据目标体积与图片透明度自动选择 PNG、WebP 或 JPG。
+                  </Paragraph>
+                )}
+                {selectedFile &&
+                  (imageCompressMode === 'manual' ? format === 'auto' || format === 'original' : format === 'original') &&
+                  classifyFile(selectedFile) === 'image' && (
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
                     当前文件将编码为：{encodeFormatLabel(resolveEncodeFormat('original', selectedFile))}
                     {(!selectedFile.type || selectedFile.type === '') && (
                       <>（根据扩展名推断；无法识别时按 WebP 输出）</>
                     )}
                   </Paragraph>
-                )}
+                  )}
               </div>
               {imageCompressMode === 'smart' ? (
                 <div>

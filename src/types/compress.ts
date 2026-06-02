@@ -1,11 +1,14 @@
 /** 实际写入 Worker 的编码格式 */
 export type ImageEncodeFormat = 'jpeg' | 'webp' | 'png'
 
+/** 智能压缩可交给 Worker 自动挑选更合适的输出格式 */
+export type ImageWorkerEncodeFormat = ImageEncodeFormat | 'auto'
+
 /** 界面选择：默认表示按原图类型输出（在发送 Worker 前会解析为 ImageEncodeFormat） */
-export type ImageFormatPreference = 'original' | ImageEncodeFormat
+export type ImageFormatPreference = 'auto' | 'original' | ImageEncodeFormat
 
 export type ImageCompressOptions = {
-  format: ImageEncodeFormat
+  format: ImageWorkerEncodeFormat
   quality: number
   maxWidth?: number
   /** 输出体积需不超过此值（字节）。未设置时 Worker 使用原图大小作为上限（手动模式） */
