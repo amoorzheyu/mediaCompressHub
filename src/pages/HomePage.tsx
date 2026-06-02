@@ -172,6 +172,20 @@ function initialPanes(): Record<TabId, TabPaneState> {
   return { image: emptyPane(), gif: emptyPane(), video: emptyPane() }
 }
 
+type CompressState = {
+  busy: boolean
+  progress: number
+  statusText: string
+}
+
+function emptyCompressState(): CompressState {
+  return { busy: false, progress: 0, statusText: '' }
+}
+
+function initialCompressStates(): Record<TabId, CompressState> {
+  return { image: emptyCompressState(), gif: emptyCompressState(), video: emptyCompressState() }
+}
+
 export function HomePage() {
   const { message: toast } = App.useApp()
 
@@ -192,12 +206,8 @@ export function HomePage() {
   const [quality, setQuality] = useState(0.82)
   const [, bumpVideoCrfUi] = useReducer((x: number) => x + 1, 0)
   const [videoKeepAudio, setVideoKeepAudio] = useState(() => readVideoKeepAudio())
-  const [busy, setBusy] = useState(false)
-  /** 与 `busy` 配套：正在压缩的标签页，用于避免切换标签后进度条跑到错误的文件卡片上 */
-  const [compressingKind, setCompressingKind] = useState<TabId | null>(null)
-  const [progress, setProgress] = useState(0)
-  /** 仅压缩进行中时展示在进度条下方 */
-  const [compressStatusText, setCompressStatusText] = useState('')
+  const [compressStates, setCompressStates] =
+    useState<Record<TabId, CompressState>>(initialCompressStates)
   const [ffmpegReady, setFfmpegReady] = useState(false)
   const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
   const [panes, setPanes] = useState<Record<TabId, TabPaneState>>(initialPanes)
@@ -223,10 +233,21 @@ export function HomePage() {
     persistTab(t)
   }, [])
 
+  const patchCompressState = useCallback((tab: TabId, patch: Partial<CompressState>) => {
+    setCompressStates((prev) => ({
+      ...prev,
+      [tab]: { ...prev[tab], ...patch },
+    }))
+  }, [])
+
   const pane = panes[activeTab]
   const { selectedFile, resultBlob, resultName, lastStats, previewUrl, error, idleStatusText } = pane
 
-  const compressingThisTab = Boolean(busy && compressingKind === activeTab)
+  const activeCompressState = compressStates[activeTab]
+  const compressingThisTab = activeCompressState.busy
+  const ffmpegBusy = compressStates.gif.busy || compressStates.video.busy
+  const anyBusy = compressStates.image.busy || ffmpegBusy
+  const startDisabled = compressingThisTab || ((activeTab === 'gif' || activeTab === 'video') && ffmpegBusy)
 
   const imageMinQualityPct = readImageMinQualityPercent()
   const imageMinQualityDec = readImageMinQualityDecimal()
@@ -280,6 +301,18 @@ export function HomePage() {
   }, [imageMinQualityDec])
 
   useEffect(() => {
+    if (!anyBusy) return
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = '压缩任务正在进行中，刷新或关闭页面会中断当前任务。'
+    }
+
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [anyBusy])
+
+  useEffect(() => {
     return () => {
       const p = panesRef.current
       for (const id of TABS.map((t) => t.id)) {
@@ -304,6 +337,11 @@ export function HomePage() {
         setTab(detected)
         return
       }
+      if (compressStates[detected].busy) {
+        setTab(detected)
+        toast.warning('当前类型正在压缩，完成后再更换文件')
+        return
+      }
       setTab(detected)
       setPanes((p) => {
         const old = p[detected]
@@ -314,7 +352,7 @@ export function HomePage() {
         }
       })
       setResultPreviewOpen(false)
-      setProgress(0)
+      patchCompressState(detected, { progress: 0, statusText: '' })
       if (detected === 'image') {
         const d = defaultSmartTarget(file.size)
         setSmartTargetValue(d.value)
@@ -331,7 +369,7 @@ export function HomePage() {
         setGifLogicalSize(null)
       }
     },
-    [setTab],
+    [compressStates, patchCompressState, setTab, toast],
   )
 
   const clearSelection = useCallback(() => {
@@ -361,10 +399,9 @@ export function HomePage() {
         lastStats: null,
         previewUrl: null,
       })
-      setBusy(true)
-      setCompressingKind(kind)
-      setProgress(0)
-      setCompressStatusText('读取文件…')
+      const setKindProgress = (value: number) => patchCompressState(kind, { progress: value })
+      const setKindStatusText = (statusText: string) => patchCompressState(kind, { statusText })
+      patchCompressState(kind, { busy: true, progress: 0, statusText: '读取文件…' })
       setResultPreviewOpen(false)
 
       const jobId = crypto.randomUUID()
@@ -401,12 +438,12 @@ export function HomePage() {
           } else {
             imageOptions = { format: encodeFormat, quality, minQuality: imageMinQualityDec }
           }
-          setCompressStatusText(
+          setKindStatusText(
             imageCompressMode === 'smart'
               ? '在后台 Worker 中智能压缩（二分法逼近目标体积）…'
               : '在后台 Worker 中压缩图片…',
           )
-          const out = await runImageCompress(jobId, buf, file.type || 'image/jpeg', imageOptions, setProgress)
+          const out = await runImageCompress(jobId, buf, file.type || 'image/jpeg', imageOptions, setKindProgress)
           const blob = new Blob([out.buffer], { type: out.outputMime })
           const base = file.name.replace(/\.[^.]+$/, '')
           const ext =
@@ -445,7 +482,7 @@ export function HomePage() {
               },
               idleStatusText: idleMsg,
             })
-            setProgress(100)
+            setKindProgress(100)
             if (!keptOriginal && !targetUnmet) {
               toast.success('压缩完成')
             }
@@ -473,7 +510,7 @@ export function HomePage() {
         }
 
         if (!ffmpegReady) {
-          setCompressStatusText('正在加载 FFmpeg（首次需联网拉取核心，仅一次）…')
+          setKindStatusText('正在加载 FFmpeg（首次需联网拉取核心，仅一次）…')
           await preloadFfmpeg()
           setFfmpegReady(true)
         }
@@ -501,14 +538,14 @@ export function HomePage() {
             for (let i = 0; i < n; i++) {
               const copy = buf.slice(0)
               const span = 88 / n
-              setCompressStatusText(`GIF 智能压缩：尝试参数组 ${i + 1} / ${n}…`)
+              setKindStatusText(`GIF 智能压缩：尝试参数组 ${i + 1} / ${n}…`)
               const attemptOut = await runFfmpegCompress(
                 jobId,
                 copy,
                 file.name,
                 'gif',
                 readVideoTargetCrf(),
-                (p) => setProgress(Math.min(99, Math.floor(i * span + (p / 100) * span))),
+                (p) => setKindProgress(Math.min(99, Math.floor(i * span + (p / 100) * span))),
                 true,
                 GIF_SMART_ATTEMPTS[i],
               )
@@ -530,14 +567,14 @@ export function HomePage() {
             }
             out = chosen
           } else {
-            setCompressStatusText('在 Worker 中按自定义参数压缩 GIF…')
+            setKindStatusText('在 Worker 中按自定义参数压缩 GIF…')
             out = await runFfmpegCompress(
               jobId,
               buf,
               file.name,
               'gif',
               readVideoTargetCrf(),
-              setProgress,
+              setKindProgress,
               true,
               {
                 maxFps: gifCustomMaxFps,
@@ -551,7 +588,7 @@ export function HomePage() {
             )
           }
         } else {
-          setCompressStatusText(
+          setKindStatusText(
             videoKeepAudio
               ? '在 Worker 中压缩视频（保留音轨）…'
               : '在 Worker 中压缩视频（已去除音轨以减小体积）…',
@@ -562,7 +599,7 @@ export function HomePage() {
             file.name,
             'video',
             readVideoTargetCrf(),
-            setProgress,
+            setKindProgress,
             videoKeepAudio,
           )
         }
@@ -599,7 +636,7 @@ export function HomePage() {
               ? '完成：编码结果未小于原文件，已保留原文件'
               : gifSmartIdle,
           })
-          setProgress(100)
+          setKindProgress(100)
           if (!keptOriginal && !(kind === 'gif' && gifCompressMode === 'smart' && gifTargetUnmet)) {
             toast.success('压缩完成')
           }
@@ -645,14 +682,13 @@ export function HomePage() {
           errorMessage: message,
         })
       } finally {
-        setBusy(false)
-        setCompressingKind(null)
-        setCompressStatusText('')
+        patchCompressState(kind, { busy: false, statusText: '' })
       }
     },
     [
       ffmpegReady,
       mergePane,
+      patchCompressState,
       videoKeepAudio,
       format,
       imageCompressMode,
@@ -725,11 +761,11 @@ export function HomePage() {
   }, [gifSmartTargetUnit, gifSmartTargetValue])
 
   const onStartCompress = useCallback(() => {
-    if (!selectedFile || busy) return
+    if (!selectedFile || startDisabled) return
     const k = classifyFile(selectedFile)
     if (k !== activeTab) setTab(k)
     void processFile(selectedFile)
-  }, [activeTab, busy, processFile, selectedFile, setTab])
+  }, [activeTab, processFile, selectedFile, setTab, startDisabled])
 
   const tabItems = useMemo(
     () =>
@@ -841,9 +877,14 @@ export function HomePage() {
                     </Space>
                   ) : null}
                   {compressingThisTab ? (
-                    <Tooltip title={compressStatusText || '压缩中'}>
+                    <Tooltip title={activeCompressState.statusText || '压缩中'}>
                       <div className={styles.fileCardProgress}>
-                        <Progress percent={progress} size="small" status="active" showInfo />
+                        <Progress
+                          percent={activeCompressState.progress}
+                          size="small"
+                          status="active"
+                          showInfo
+                        />
                       </div>
                     </Tooltip>
                   ) : null}
@@ -854,6 +895,7 @@ export function HomePage() {
                   <Button
                     type="primary"
                     icon={compressingThisTab ? <LoadingOutlined /> : undefined}
+                    disabled={startDisabled}
                     onClick={onStartCompress}
                   >
                     {compressingThisTab ? '压缩中…' : '开始压缩'}
@@ -1176,7 +1218,7 @@ export function HomePage() {
           </Card>
         )}
 
-        {!busy && idleStatusText && !error && (
+        {!compressingThisTab && idleStatusText && !error && (
           <Alert style={{ marginTop: 16 }} type="warning" showIcon message={idleStatusText} />
         )}
         {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
