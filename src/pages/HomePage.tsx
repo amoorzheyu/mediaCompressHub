@@ -806,20 +806,32 @@ export function HomePage() {
                 <>
                   支持 JPG、PNG、WebP、AVIF、BMP 等常见静态图片；单文件最大{' '}
                   <strong>{formatBytes(readImageMaxUploadBytes())}</strong>
-                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限
+                  ，可在{' '}
+                  <RouterLink to="/settings" onClick={(e) => e.stopPropagation()}>
+                    设置
+                  </RouterLink>{' '}
+                  调整上限
                 </>
               )}
               {activeTab === 'gif' && (
                 <>
                   支持 GIF 动图；单文件最大 <strong>{formatBytes(readGifMaxUploadBytes())}</strong>
-                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限
+                  ，可在{' '}
+                  <RouterLink to="/settings" onClick={(e) => e.stopPropagation()}>
+                    设置
+                  </RouterLink>{' '}
+                  调整上限
                 </>
               )}
               {activeTab === 'video' && (
                 <>
                   支持 MP4、WebM、MOV 等常见视频；单文件最大{' '}
                   <strong>{formatBytes(readVideoMaxUploadBytes())}</strong>
-                  ，可在 <RouterLink to="/settings">设置</RouterLink> 调整上限
+                  ，可在{' '}
+                  <RouterLink to="/settings" onClick={(e) => e.stopPropagation()}>
+                    设置
+                  </RouterLink>{' '}
+                  调整上限
                 </>
               )}
             </Paragraph>
