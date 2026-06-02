@@ -1,14 +1,11 @@
 # 压缩坞（Media Compress Hub）
 
-纯前端的本地媒体压缩工具：图片、GIF、视频在浏览器或桌面窗口内处理，**文件不会上传到任何服务器**。可作为渐进式 Web 应用（PWA）在浏览器中安装，也可通过 **Electron** 打包为 Windows / macOS / Linux 桌面应用。
+纯前端的本地媒体压缩工具：图片、GIF、视频在浏览器或桌面窗口内处理，**文件不会上传到任何服务器**。可作为渐进式 Web 应用（PWA）在浏览器中安装，也可通过 **Electron** 打包为 Windows / macOS「即将支持」 / Linux 桌面应用。
 
 ## 界面展示
-
-<img width="2229" height="1626" alt="image" src="https://github.com/user-attachments/assets/f7eb58ea-2ec2-42ac-9947-39e326e7bc6e" />
-
-<img width="2229" height="1626" alt="image" src="https://github.com/user-attachments/assets/1b2cb875-b7cd-4b64-a034-26edaa02b29c" />
-
-<img width="2206" height="1628" alt="image" src="https://github.com/user-attachments/assets/98bb92ac-cda4-4329-b23f-f3fc21de919d" />
+<img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/d76db337-baba-47d2-a114-adde5fb2094d" />
+<img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/41a15f98-63d1-45c2-ab43-22138c31c2e0" />
+<img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/e3c85dec-fa26-4880-920b-bbc70d09a428" />
 
 ## 功能概览
 
