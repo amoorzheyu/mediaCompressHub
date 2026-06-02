@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1.25rem;
+  padding: 0.45rem 1.25rem;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-root) 100%);
   position: sticky;
@@ -56,12 +56,11 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
   text-decoration: none;
   color: inherit;
-  padding: 0.2rem 0.35rem 0.2rem 0;
-  margin: -0.2rem 0;
-  border-radius: 10px;
+  padding: 0.15rem 0.35rem;
+  margin: -0.15rem 0;
+  border-radius: 8px;
   transition: background 0.15s ease;
 }
 
@@ -69,29 +68,24 @@
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
-.brandIcon {
-  font-size: 1.45rem;
-  color: var(--accent);
-  text-shadow: 0 0 18px var(--accent-glow);
-}
-
 .brandText {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.55rem;
   min-width: 0;
 }
 
 .brandName {
   font-size: 1.08rem;
   letter-spacing: 0.04em;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .brandSub {
   display: inline-flex;
   align-items: center;
-  padding: 0.28rem 0.55rem;
+  padding: 0.22rem 0.5rem;
   border-radius: 6px;
   font-weight: 600;
   font-size: 0.68rem;
@@ -101,6 +95,7 @@
   background: color-mix(in srgb, var(--accent) 14%, var(--bg-root));
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 @media (max-width: 380px) {

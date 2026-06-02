@@ -62,9 +62,6 @@ export function Layout() {
           </div>
         ) : (
           <NavLink to="/" className={styles.brand} end>
-            <span className={styles.brandIcon} aria-hidden>
-              ◈
-            </span>
             <span className={styles.brandText}>
               <strong className={styles.brandName}>压缩坞</strong>
               <span className={styles.brandSub}>本地处理 · 零上传</span>
