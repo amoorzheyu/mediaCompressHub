@@ -19,6 +19,18 @@
   z-index: 10;
 }
 
+.headerElectron {
+  min-height: 2.25rem;
+  padding-top: 0.32rem;
+  padding-bottom: 0.32rem;
+  padding-left: 5.25rem;
+  -webkit-app-region: drag;
+}
+
+.headerElectron :is(button, a, [role='menuitem'], .topMenu) {
+  -webkit-app-region: no-drag;
+}
+
 /* 窄屏：品牌一行 + 全宽分段导航，避免横向 Menu 挤压、溢出 */
 .headerStack {
   flex-wrap: wrap;
@@ -37,6 +49,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.35rem 0.5rem;
+  min-width: max-content;
 }
 
 .navSegmented {

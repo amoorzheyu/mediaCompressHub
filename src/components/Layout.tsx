@@ -46,7 +46,11 @@ export function Layout() {
 
   return (
     <div className={styles.shell}>
-      <header className={`${styles.header} ${navCompact ? styles.headerStack : ''}`}>
+      <header
+        className={`${styles.header} ${isElectronApp ? styles.headerElectron : ''} ${
+          navCompact ? styles.headerStack : ''
+        }`}
+      >
         {isElectronApp ? (
           <div className={`${styles.headerElectronLeft} ${navCompact ? styles.headerStackLeading : ''}`}>
             <button type="button" className={styles.footerAction} onClick={() => setQrModal('tip')}>
