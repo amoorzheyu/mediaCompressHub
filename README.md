@@ -84,7 +84,7 @@ npm run preview
 
 Release 中预期包含：
 
-- macOS：`.dmg` 安装包、`.zip` 免安装包
+- macOS：x64 / arm64 两种架构的 `.dmg` 安装包、`.zip` 免安装包
 - Windows：`.exe` 安装包、`.exe` Portable 免安装包
 - Linux：`.AppImage` 免安装包、`.deb` 安装包、`.tar.gz` 压缩包
 
