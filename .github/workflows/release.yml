@@ -22,9 +22,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macOS
+          - platform: macOS x64
+            os: macos-13
+            target: --mac --x64
+            artifact: |
+              release/*.dmg
+              release/*.zip
+          - platform: macOS arm64
             os: macos-latest
-            target: --mac
+            target: --mac --arm64
             artifact: |
               release/*.dmg
               release/*.zip
