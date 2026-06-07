@@ -64,6 +64,18 @@ export function Layout() {
               <WechatOutlined aria-hidden />
               联系作者
             </button>
+            <span className={styles.footerSep} aria-hidden>
+              ·
+            </span>
+            <a
+              className={styles.footerLink}
+              href="https://discord.gg/HxVbsbec"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <DiscordOutlined aria-hidden />
+              官方群聊
+            </a>
           </div>
         ) : (
           <NavLink to="/" className={styles.brand} end>
