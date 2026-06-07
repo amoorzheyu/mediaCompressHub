@@ -65,8 +65,8 @@
 }
 
 .thumbFallback {
-  background: #12151f !important;
-  color: rgba(255, 255, 255, 0.45) !important;
+  background: var(--bg-elevated) !important;
+  color: var(--muted) !important;
   font-weight: 700;
 }
 

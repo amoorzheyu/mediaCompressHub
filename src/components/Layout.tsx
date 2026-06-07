@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Menu, Modal, Segmented, Typography } from 'antd'
+import { Button, Menu, Modal, Segmented, Typography } from 'antd'
 import {
   CompressOutlined,
   DiscordOutlined,
   GithubOutlined,
   HeartOutlined,
   HistoryOutlined,
+  MoonOutlined,
   SettingOutlined,
+  SunOutlined,
   WechatOutlined,
 } from '@ant-design/icons'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AUTHOR_CONTACT_QRCODE_URL, AUTHOR_TIP_QRCODE_URL } from '../lib/authorQrUrls'
 import { isElectronApp } from '../lib/isElectronApp'
+import { useAppTheme } from '../providers/ThemeProvider'
 import styles from './Layout.module.css'
 
 const { Text } = Typography
@@ -40,6 +43,7 @@ const navSegmentedOptions = [
 export function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { mode, toggleMode } = useAppTheme()
   const path = location.pathname === '/' ? '/' : location.pathname
   const [qrModal, setQrModal] = useState<null | 'tip' | 'contact'>(null)
   const navCompact = useNavCompact()
@@ -85,28 +89,38 @@ export function Layout() {
             </span>
           </NavLink>
         )}
-        {navCompact ? (
-          <Segmented
-            className={styles.navSegmented}
-            block
-            size="large"
-            value={path}
-            options={navSegmentedOptions}
-            onChange={(key) => navigate(String(key))}
+        <div className={`${styles.headerActions} ${navCompact ? styles.headerActionsStack : ''}`}>
+          <Button
+            className={styles.themeButton}
+            type="text"
+            shape="circle"
+            icon={mode === 'dark' ? <MoonOutlined /> : <SunOutlined />}
+            aria-label={mode === 'dark' ? '当前暗色模式，点击切换亮色模式' : '当前亮色模式，点击切换暗色模式'}
+            onClick={toggleMode}
           />
-        ) : (
-          <Menu
-            mode="horizontal"
-            selectedKeys={[path]}
-            items={[
-              { key: '/', label: '压缩', icon: <CompressOutlined /> },
-              { key: '/history', label: '历史', icon: <HistoryOutlined /> },
-              { key: '/settings', label: '设置', icon: <SettingOutlined /> },
-            ]}
-            onClick={({ key }) => navigate(key)}
-            className={styles.topMenu}
-          />
-        )}
+          {navCompact ? (
+            <Segmented
+              className={styles.navSegmented}
+              block
+              size="large"
+              value={path}
+              options={navSegmentedOptions}
+              onChange={(key) => navigate(String(key))}
+            />
+          ) : (
+            <Menu
+              mode="horizontal"
+              selectedKeys={[path]}
+              items={[
+                { key: '/', label: '压缩', icon: <CompressOutlined /> },
+                { key: '/history', label: '历史', icon: <HistoryOutlined /> },
+                { key: '/settings', label: '设置', icon: <SettingOutlined /> },
+              ]}
+              onClick={({ key }) => navigate(key)}
+              className={styles.topMenu}
+            />
+          )}
+        </div>
       </header>
       <main className={styles.main}>
         <Outlet />

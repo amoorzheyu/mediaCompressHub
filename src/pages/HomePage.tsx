@@ -812,7 +812,7 @@ export function HomePage() {
         <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <Upload.Dragger key={activeTab} {...uploadProps}>
             <p className="ant-upload-drag-icon">
-              <InboxOutlined style={{ color: '#34d399', fontSize: 52 }} />
+              <InboxOutlined style={{ color: 'var(--accent)', fontSize: 52 }} />
             </p>
             <Title level={5} style={{ marginTop: 8 }}>
               拖入文件或点击选择

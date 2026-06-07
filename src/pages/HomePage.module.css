@@ -85,7 +85,7 @@
 }
 
 .panel :global(.ant-upload.ant-upload-drag:hover) {
-  border-color: #34d399 !important;
+  border-color: var(--accent) !important;
 }
 
 /* 当前文件卡片：左标题 / 中下载+预览 / 右操作；窄屏单列 */
