@@ -86,6 +86,12 @@
       ],
       "category": "public.app-category.utilities"
     },
+    "dmg": {
+      "artifactName": "media-compress-hub-${version}-mac-${arch}.${ext}"
+    },
+    "zip": {
+      "artifactName": "media-compress-hub-${version}-mac-${arch}.${ext}"
+    },
     "linux": {
       "target": [
         "AppImage",
@@ -94,6 +100,12 @@
       ],
       "category": "Utility",
       "maintainer": "amoorzheyu <amoorzheyuyyds@gmail.com>"
+    },
+    "appImage": {
+      "artifactName": "media-compress-hub-${version}-linux-${arch}.${ext}"
+    },
+    "deb": {
+      "artifactName": "media-compress-hub-${version}-linux-${arch}.${ext}"
     }
   }
 }
