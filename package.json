@@ -89,9 +89,6 @@
     "dmg": {
       "artifactName": "media-compress-hub-${version}-mac-${arch}.${ext}"
     },
-    "zip": {
-      "artifactName": "media-compress-hub-${version}-mac-${arch}.${ext}"
-    },
     "linux": {
       "target": [
         "AppImage",
