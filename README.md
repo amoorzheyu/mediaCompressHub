@@ -65,12 +65,27 @@ npm run preview
 | `npm run build:electron` | 类型检查并构建供桌面使用的 `dist/`（资源为相对路径，关闭 PWA 插件） |
 | `npm run electron:start` | 先执行 `build:electron`，再用当前仓库的 Electron 直接加载 `dist`（快速验证生产包） |
 | `npm run electron:pack` | 构建并生成未封装的程序目录（如 `release/win-unpacked`） |
-| `npm run electron:dist` | 构建并生成安装包（Windows 默认 NSIS，输出在 `release/`） |
+| `npm run electron:pack:mac` | 构建并生成 macOS 未封装的 `.app` 程序目录 |
+| `npm run electron:dist` | 构建并生成当前平台默认安装包（Windows 为 NSIS，macOS 为 DMG，Linux 为 AppImage） |
+| `npm run electron:dist:mac` | 构建并生成 macOS DMG 安装包，输出在 `release/` |
 
 说明：
 
 - 桌面安装包默认输出目录为 **`release/`**（已在 `.gitignore` 中忽略）。
+- macOS 打包目标已配置为 **DMG**，应用分类为 `public.app-category.utilities`。
+- 生成 macOS 安装包建议在 macOS 环境执行；如果后续要正式分发，还需要配置 Apple Developer 证书、签名与公证。
 - Windows 下 `package.json` 中配置了 `signAndEditExecutable: false`，便于在未配置代码签名、无符号链接权限的环境中本地打包；若需正式发布签名安装包，请自行配置证书并调整 [electron-builder](https://www.electron.build/) 选项。
+
+## GitHub Release 自动打包
+
+仓库已配置 GitHub Actions：推送 `v*` 格式的 tag 后，会自动在 macOS / Windows / Linux runner 上打包桌面应用，并上传到对应的 GitHub Release。
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+也可以在 GitHub Actions 页面手动运行 `Release` 工作流。
 
 ## 代码质量
 

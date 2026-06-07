@@ -11,8 +11,10 @@
     "build:electron": "tsc -b && vite build --mode electron",
     "electron:dev": "concurrently -k \"vite --mode electron-dev\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "electron:pack": "npm run build:electron && electron-builder --dir",
+    "electron:pack:mac": "npm run build:electron && electron-builder --mac --dir",
     "electron:start": "npm run build:electron && electron .",
     "electron:dist": "npm run build:electron && electron-builder",
+    "electron:dist:mac": "npm run build:electron && electron-builder --mac",
     "lint": "eslint .",
     "preview": "vite preview"
   },
