@@ -2,6 +2,11 @@
   "name": "media-compress-hub",
   "private": true,
   "version": "0.0.0",
+  "description": "纯本地图片、GIF、视频压缩工具",
+  "author": {
+    "name": "amoorzheyu",
+    "email": "amoorzheyuyyds@gmail.com"
+  },
   "license": "AGPL-3.0",
   "type": "module",
   "main": "electron/main.cjs",
@@ -80,7 +85,8 @@
         "deb",
         "tar.gz"
       ],
-      "category": "Utility"
+      "category": "Utility",
+      "maintainer": "amoorzheyu <amoorzheyuyyds@gmail.com>"
     }
   }
 }
