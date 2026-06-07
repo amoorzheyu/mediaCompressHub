@@ -88,6 +88,8 @@ Release 中预期包含：
 - Windows：`.exe` 安装包、`.exe` Portable 免安装包
 - Linux：`.AppImage` 免安装包、`.deb` 安装包、`.tar.gz` 压缩包
 
+桌面产物文件名统一使用项目名 `media-compress-hub`，例如 `media-compress-hub-1.0.0-mac-arm64.dmg`、`media-compress-hub-1.0.0-windows-x64-setup.exe`。
+
 ```bash
 git tag v1.0.0
 git push origin v1.0.0

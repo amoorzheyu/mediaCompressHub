@@ -60,6 +60,7 @@
     "directories": {
       "output": "release"
     },
+    "artifactName": "media-compress-hub-${version}-${os}-${arch}.${ext}",
     "files": [
       "package.json",
       "dist/**/*",
@@ -71,6 +72,12 @@
         "portable"
       ],
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "artifactName": "media-compress-hub-${version}-windows-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "media-compress-hub-${version}-windows-${arch}-portable.${ext}"
     },
     "mac": {
       "target": [
