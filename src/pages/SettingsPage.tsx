@@ -137,7 +137,7 @@ export function SettingsPage() {
         设置与隐私
       </Title>
 
-      <Space orientation="vertical" size="large" style={{ width: '100%', maxWidth: 640 }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Card title="图片压缩 · 最低质量" size="small">
           <Paragraph type="secondary" style={{ marginBottom: 16 }}>
             智能压缩的二分下界、手动调节滑块的最小值，以及「未达目标体积」时输出的有损编码，均不会低于此处设定。默认{' '}
@@ -145,7 +145,7 @@ export function SettingsPage() {
           </Paragraph>
           <Flex align="center" gap={16} wrap>
             <Slider
-              style={{ flex: 1, minWidth: 200, maxWidth: 400 }}
+              style={{ flex: 1, minWidth: 200 }}
               min={IMAGE_MIN_QUALITY_MIN_PCT}
               max={IMAGE_MIN_QUALITY_MAX_PCT}
               value={imageMinQualityPct}
@@ -159,7 +159,6 @@ export function SettingsPage() {
                 [IMAGE_MIN_QUALITY_MAX_PCT]: `${IMAGE_MIN_QUALITY_MAX_PCT}%`,
               }}
             />
-            <Text strong style={{ minWidth: 48 }}>{imageMinQualityPct}%</Text>
           </Flex>
         </Card>
 
@@ -232,7 +231,7 @@ export function SettingsPage() {
                 静态图片（JPG / PNG / WebP / AVIF 等）
               </Text>
               <Flex align="center" gap={12} wrap>
-                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
+                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 520 }}>
                   <InputNumber
                     style={{ width: '100%' }}
                     min={bytesToInput(IMAGE_BYTES_MIN, imageUnit)}
@@ -279,7 +278,7 @@ export function SettingsPage() {
                 GIF 动图
               </Text>
               <Flex align="center" gap={12} wrap>
-                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
+                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 520 }}>
                   <InputNumber
                     style={{ width: '100%' }}
                     min={bytesToInput(GIF_BYTES_MIN, gifUnit)}
@@ -326,7 +325,7 @@ export function SettingsPage() {
                 视频
               </Text>
               <Flex align="center" gap={12} wrap>
-                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
+                <Space.Compact style={{ flex: 1, minWidth: 200, maxWidth: 520 }}>
                   <InputNumber
                     style={{ width: '100%' }}
                     min={bytesToInput(VIDEO_BYTES_MIN, videoUnit)}
