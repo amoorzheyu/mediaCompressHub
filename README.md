@@ -108,6 +108,16 @@ npm run lint
 - 媒体仅在用户本机内存与 Worker 中处理
 - 历史与设置仅存于浏览器本地存储（IndexedDB 等），清除站点数据会一并删除
 
+
+<a href="https://www.star-history.com/?repos=mediaCompressHub%2FmediaCompressHub%2Camoorzheyu%2FmediaCompressHub&type=date&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=mediaCompressHub/mediaCompressHub%2Camoorzheyu/mediaCompressHub&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=mediaCompressHub/mediaCompressHub%2Camoorzheyu/mediaCompressHub&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=mediaCompressHub/mediaCompressHub%2Camoorzheyu/mediaCompressHub&type=date&legend=top-left" />
+ </picture>
+</a>
+
+
 ## 许可
 
 本项目以 [**GNU Affero General Public License v3.0**](https://www.gnu.org/licenses/agpl-3.0.html)（AGPL-3.0）发布，全文见仓库根目录 [`LICENSE`](./LICENSE)。
