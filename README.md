@@ -109,11 +109,11 @@ npm run lint
 - 历史与设置仅存于浏览器本地存储（IndexedDB 等），清除站点数据会一并删除
 
 
-<a href="https://www.star-history.com/?repos=mediaCompressHub%2FmediaCompressHub%2Camoorzheyu%2FmediaCompressHub&type=date&legend=bottom-right">
+<a href="https://www.star-history.com/?repos=amoorzheyu%2FmediaCompressHub&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=mediaCompressHub/mediaCompressHub%2Camoorzheyu/mediaCompressHub&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=mediaCompressHub/mediaCompressHub%2Camoorzheyu/mediaCompressHub&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=mediaCompressHub/mediaCompressHub%2Camoorzheyu/mediaCompressHub&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=amoorzheyu/mediaCompressHub&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=amoorzheyu/mediaCompressHub&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=amoorzheyu/mediaCompressHub&type=date&legend=top-left" />
  </picture>
 </a>
 
