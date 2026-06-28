@@ -1,6 +1,6 @@
 # 压缩坞（Media Compress Hub）
 
-纯前端的本地媒体压缩工具：图片、GIF、视频在浏览器或桌面窗口内处理，**文件不会上传到任何服务器**。可作为渐进式 Web 应用（PWA）在浏览器中安装，也可通过 **Electron** 打包为 Windows / macOS「即将支持」 / Linux 桌面应用。
+纯前端的本地媒体压缩工具：图片、GIF、视频在浏览器或桌面窗口内处理，**文件不会上传到任何服务器**。可作为渐进式 Web 应用（PWA）在浏览器中安装，也可通过 **Electron** 打包为 Windows / macOS / Linux 桌面应用。
 
 ## 界面展示
 <img width="3196" height="1746" alt="image" src="https://github.com/user-attachments/assets/d76db337-baba-47d2-a114-adde5fb2094d" />
@@ -107,6 +107,16 @@ npm run lint
 
 - 媒体仅在用户本机内存与 Worker 中处理
 - 历史与设置仅存于浏览器本地存储（IndexedDB 等），清除站点数据会一并删除
+
+
+<a href="https://www.star-history.com/?repos=amoorzheyu%2FmediaCompressHub&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=amoorzheyu/mediaCompressHub&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=amoorzheyu/mediaCompressHub&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=amoorzheyu/mediaCompressHub&type=date&legend=top-left" />
+ </picture>
+</a>
+
 
 ## 许可
 
