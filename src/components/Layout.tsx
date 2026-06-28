@@ -73,7 +73,7 @@ export function Layout() {
             </span>
             <a
               className={styles.footerLink}
-              href="https://discord.gg/HxVbsbec"
+              href="https://discord.gg/ujV7SZTn5"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -156,7 +156,7 @@ export function Layout() {
             </span>
             <a
               className={styles.footerLink}
-              href="https://discord.gg/HxVbsbec"
+              href="https://discord.gg/ujV7SZTn5"
               target="_blank"
               rel="noopener noreferrer"
             >

@@ -1,7 +1,7 @@
 {
   "name": "media-compress-hub",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "纯本地图片、GIF、视频压缩工具",
   "author": {
     "name": "amoorzheyu",
@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "antd": "^6.3.5",
@@ -39,6 +40,10 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
@@ -47,12 +52,8 @@
     "typescript-eslint": "^8.57.0",
     "vite": "^8.0.1",
     "vite-plugin-pwa": "^1.2.0",
-    "workbox-window": "^7.4.0",
-    "concurrently": "^9.2.1",
-    "cross-env": "^10.1.0",
-    "electron": "^39.0.0",
-    "electron-builder": "^26.0.12",
-    "wait-on": "^9.0.3"
+    "wait-on": "^9.0.3",
+    "workbox-window": "^7.4.0"
   },
   "build": {
     "appId": "com.mediacompress.hub",
@@ -64,7 +65,11 @@
     "files": [
       "package.json",
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "node_modules/@ffmpeg-installer/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/@ffmpeg-installer/**/*"
     ],
     "win": {
       "target": [

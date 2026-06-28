@@ -30,6 +30,7 @@ import type { UploadProps } from 'antd'
 import { Link as RouterLink } from 'react-router-dom'
 import { runImageCompress } from '../lib/compress/imageWorkerClient'
 import { preloadFfmpeg, runFfmpegCompress } from '../lib/compress/ffmpegWorkerClient'
+import { canUseNativeVideoCompress, runNativeVideoCompress } from '../lib/compress/nativeVideoClient'
 import { addJob } from '../lib/idb/db'
 import { makeThumbnailBlob, makeVideoThumbnailBlob } from '../lib/thumbnail'
 import { formatBytes } from '../lib/formatBytes'
@@ -41,7 +42,12 @@ import {
 } from '../lib/fileUploadLimitSettings'
 import { readImageMinQualityDecimal, readImageMinQualityPercent } from '../lib/imageCompressSettings'
 import { videoCompressPercentToCrf, videoCrfToCompressPercent } from '../lib/compress/videoCrfPercent'
-import { readVideoCrfRange, readVideoTargetCrf, writeVideoTargetCrf } from '../lib/videoCrfRangeSettings'
+import {
+  clampCrfForX264Encode,
+  readVideoCrfRange,
+  readVideoTargetCrf,
+  writeVideoTargetCrf,
+} from '../lib/videoCrfRangeSettings'
 import { readVideoKeepAudio, writeVideoKeepAudio } from '../lib/videoAudioSettings'
 import { GIF_SMART_ATTEMPTS } from '../lib/gifEncode'
 import { parseGifLogicalScreen } from '../lib/parseGifHeader'
@@ -510,7 +516,9 @@ export function HomePage() {
           return
         }
 
-        if (!ffmpegReady) {
+        const useNativeVideo = kind === 'video' && canUseNativeVideoCompress()
+
+        if (!useNativeVideo && !ffmpegReady) {
           setKindStatusText('正在加载 FFmpeg（首次需联网拉取核心，仅一次）…')
           await preloadFfmpeg()
           setFfmpegReady(true)
@@ -589,20 +597,37 @@ export function HomePage() {
             )
           }
         } else {
-          setKindStatusText(
-            videoKeepAudio
-              ? '在 Worker 中压缩视频（保留音轨）…'
-              : '在 Worker 中压缩视频（已去除音轨以减小体积）…',
-          )
-          out = await runFfmpegCompress(
-            jobId,
-            buf,
-            file.name,
-            'video',
-            readVideoTargetCrf(),
-            setKindProgress,
-            videoKeepAudio,
-          )
+          const crf = clampCrfForX264Encode(readVideoTargetCrf())
+          if (useNativeVideo) {
+            setKindStatusText(
+              videoKeepAudio
+                ? '使用内置 FFmpeg 压缩视频（保留音轨）…'
+                : '使用内置 FFmpeg 压缩视频（已去除音轨以减小体积）…',
+            )
+            out = await runNativeVideoCompress(
+              jobId,
+              buf,
+              file.name,
+              crf,
+              setKindProgress,
+              videoKeepAudio,
+            )
+          } else {
+            setKindStatusText(
+              videoKeepAudio
+                ? '在 Worker 中压缩视频（保留音轨）…'
+                : '在 Worker 中压缩视频（已去除音轨以减小体积）…',
+            )
+            out = await runFfmpegCompress(
+              jobId,
+              buf,
+              file.name,
+              'video',
+              crf,
+              setKindProgress,
+              videoKeepAudio,
+            )
+          }
         }
         let blob = new Blob([out.buffer], { type: out.outputMime })
         let outputFileName = out.outputFileName
