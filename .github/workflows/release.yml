@@ -23,7 +23,7 @@ jobs:
       matrix:
         include:
           - platform: macOS x64
-            os: macos-13
+            os: macos-15-intel
             target: --mac --x64
             artifact: |
               release/*.dmg

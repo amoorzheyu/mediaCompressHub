@@ -1,0 +1,11 @@
+.panel {
+  width: 100%;
+}
+
+.hint {
+  margin-bottom: 0;
+}
+
+.filename {
+  overflow-wrap: anywhere;
+}

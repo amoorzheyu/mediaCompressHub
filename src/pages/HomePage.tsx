@@ -4,6 +4,7 @@ import {
   App,
   Button,
   Card,
+  ConfigProvider,
   Flex,
   InputNumber,
   Modal,
@@ -58,6 +59,9 @@ import type {
   ImageEncodeFormat,
   ImageFormatPreference,
 } from '../types/compress'
+import { BatchImageConcurrencyField } from '../components/BatchImageConcurrencyField'
+import { readBatchImageConcurrency } from '../lib/batchImageConcurrencySettings'
+import { BatchImagePanel } from '../components/BatchImagePanel'
 import { FileComparePreview } from '../components/ImageCompareSlider'
 import { isElectronApp } from '../lib/isElectronApp'
 import styles from './HomePage.module.css'
@@ -195,6 +199,9 @@ function initialCompressStates(): Record<TabId, CompressState> {
 export function HomePage() {
   const { message: toast } = App.useApp()
 
+  const [imageSelectionMode, setImageSelectionMode] = useState<'single' | 'batch'>('single')
+  const [batchBusy, setBatchBusy] = useState(false)
+  const [batchConcurrency, setBatchConcurrency] = useState<number | null>(readBatchImageConcurrency)
   const [format, setFormat] = useState<ImageFormatPreference>('auto')
   const [imageCompressMode, setImageCompressMode] = useState<'smart' | 'manual'>('smart')
   const [gifCompressMode, setGifCompressMode] = useState<'smart' | 'custom'>('smart')
@@ -252,7 +259,7 @@ export function HomePage() {
   const activeCompressState = compressStates[activeTab]
   const compressingThisTab = activeCompressState.busy
   const ffmpegBusy = compressStates.gif.busy || compressStates.video.busy
-  const anyBusy = compressStates.image.busy || ffmpegBusy
+  const anyBusy = compressStates.image.busy || batchBusy || ffmpegBusy
   const startDisabled = compressingThisTab || ((activeTab === 'gif' || activeTab === 'video') && ffmpegBusy)
 
   const imageMinQualityPct = readImageMinQualityPercent()
@@ -834,6 +841,25 @@ export function HomePage() {
           <Tabs activeKey={activeTab} items={tabItems} onChange={(k) => setTab(k as TabId)} size="large" />
         </div>
 
+        {activeTab === 'image' && (
+          <Segmented<'single' | 'batch'>
+            value={imageSelectionMode}
+            disabled={compressStates.image.busy || batchBusy}
+            onChange={setImageSelectionMode}
+            options={[{ label: '单张压缩', value: 'single' }, { label: '批量压缩', value: 'batch' }]}
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        <div hidden={activeTab !== 'image' || imageSelectionMode !== 'batch'}>
+          <BatchImagePanel
+            concurrency={batchConcurrency}
+            onBusyChange={setBatchBusy}
+            settings={{ format, mode: imageCompressMode, quality, minQuality: imageMinQualityDec, targetBytes: smartTargetApproxBytes }}
+          />
+        </div>
+
+        {!(activeTab === 'image' && imageSelectionMode === 'batch') && (
+          <>
         <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
           <Upload.Dragger key={activeTab} {...uploadProps}>
             <p className="ant-upload-drag-icon">
@@ -963,9 +989,16 @@ export function HomePage() {
           </Card>
         )}
 
+          </>
+        )}
+
         {activeTab === 'image' && (
+          <ConfigProvider componentDisabled={batchBusy}>
           <Card title="图片压缩 · 输出选项" size="small" style={{ marginTop: 16 }}>
             <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+              {imageSelectionMode === 'batch' && (
+                <BatchImageConcurrencyField value={batchConcurrency} onChange={setBatchConcurrency} />
+              )}
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
                   压缩方式
@@ -1098,13 +1131,14 @@ export function HomePage() {
                     tooltip={{ formatter: (v) => `${v}%` }}
                   />
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
-                    压缩质量越低，压缩体积越小，压缩质量下限 {imageMinQualityPct}% 可在{' '}
+                    JPG / WebP 的压缩质量越低，通常体积越小；PNG 无损输出不受质量滑块影响。压缩质量下限 {imageMinQualityPct}% 可在{' '}
                     <RouterLink to="/settings">设置</RouterLink> 修改
                   </Paragraph>
                 </div>
               )}
             </Space>
           </Card>
+          </ConfigProvider>
         )}
 
         {(activeTab === 'gif' || activeTab === 'video') && (
@@ -1292,10 +1326,10 @@ export function HomePage() {
           </Card>
         )}
 
-        {!compressingThisTab && idleStatusText && !error && (
+        {!(activeTab === 'image' && imageSelectionMode === 'batch') && !compressingThisTab && idleStatusText && !error && (
           <Alert style={{ marginTop: 16 }} type="warning" showIcon message={idleStatusText} />
         )}
-        {error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
+        {!(activeTab === 'image' && imageSelectionMode === 'batch') && error && <Alert style={{ marginTop: 16 }} type="error" showIcon message={error} />}
 
         <Modal
           title="压缩结果预览"

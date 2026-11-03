@@ -1,16 +1,5 @@
 import type { ImageCompressOptions, ImageWorkerToMain, MainToImageWorker } from '../../types/compress'
 
-let worker: Worker | null = null
-
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL('../../workers/imageCompress.worker.ts', import.meta.url), {
-      type: 'module',
-    })
-  }
-  return worker
-}
-
 export function runImageCompress(
   jobId: string,
   buffer: ArrayBuffer,
@@ -25,8 +14,23 @@ export function runImageCompress(
     usedOriginalFallback?: boolean
     targetUnmet?: boolean
   }> {
-  const w = getWorker()
+  // 每个任务独享 Worker，确保并发任务在不同线程编码，互不影响。
+  const w = new Worker(new URL('../../workers/imageCompress.worker.ts', import.meta.url), {
+    type: 'module',
+  })
   return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      w.removeEventListener('message', onMessage)
+      w.removeEventListener('error', onError)
+      w.removeEventListener('messageerror', onMessageError)
+      w.terminate()
+    }
+    const failWorker = (message: string) => {
+      cleanup()
+      reject(new Error(message))
+    }
+    const onError = (event: ErrorEvent) => failWorker(event.message || '图片压缩失败，请重试')
+    const onMessageError = () => failWorker('无法读取图片压缩结果，请重试')
     const onMessage = (ev: MessageEvent<ImageWorkerToMain>) => {
       const msg = ev.data
       if (msg.jobId !== jobId) return
@@ -35,7 +39,7 @@ export function runImageCompress(
         return
       }
       if (msg.type === 'image:done') {
-        w.removeEventListener('message', onMessage)
+        cleanup()
         resolve({
           buffer: msg.buffer,
           outputMime: msg.outputMime,
@@ -47,11 +51,13 @@ export function runImageCompress(
         return
       }
       if (msg.type === 'image:error') {
-        w.removeEventListener('message', onMessage)
+        cleanup()
         reject(new Error(msg.message))
       }
     }
     w.addEventListener('message', onMessage)
+    w.addEventListener('error', onError)
+    w.addEventListener('messageerror', onMessageError)
     const payload: MainToImageWorker = {
       type: 'image:start',
       jobId,
@@ -59,6 +65,11 @@ export function runImageCompress(
       inputMime,
       options,
     }
-    w.postMessage(payload, [buffer])
+    try {
+      w.postMessage(payload, [buffer])
+    } catch (error) {
+      cleanup()
+      reject(error)
+    }
   })
 }
